@@ -3,58 +3,144 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="ImobManager - sistema de gestão imobiliária">
-  <title>ImobManager</title>
-  <link rel="stylesheet" href="/css/styles.css">
+  <meta name="description" content="ImobManager - acesso ao sistema de gestão imobiliária">
+  <meta name="theme-color" content="#14283f">
+  <title>ImobManager · Acesso ao sistema</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
 </head>
-<body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand__mark" aria-hidden="true">IM</span>
-      <div class="brand__text">
-        <strong>ImobManager</strong>
-        <span>Gestão imobiliária</span>
+<body class="login-page">
+  <a class="skip-link" href="#login-form">Ir para o formulário de acesso</a>
+
+  <main class="login-shell">
+    <section class="login-brand" aria-label="ImobManager">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">IM</span>
+        <div>
+          <p class="brand-wordmark">ImobManager</p>
+          <p class="brand-tagline">Gestão imobiliária</p>
+        </div>
       </div>
-    </div>
-  </header>
 
-  <main class="page">
-    <section class="card" aria-labelledby="status-title">
-      <h1 id="status-title">Status da aplicação</h1>
-      <p class="card__subtitle">
-        Verificação em tempo real da API REST e da conexão com o PostgreSQL.
-      </p>
+      <div class="login-brand__hero">
+        <p class="login-eyebrow">Plataforma de gestão</p>
+        <h1>Gestão imobiliária com clareza e controle.</h1>
+        <p>
+          Centralize imóveis, clientes, corretores e atendimentos em um único ambiente,
+          com informação organizada para decidir melhor.
+        </p>
+      </div>
 
-      <dl class="status-grid">
-        <div class="status-item">
-          <dt>API</dt>
-          <dd id="api-status" data-state="loading">Verificando...</dd>
-        </div>
-        <div class="status-item">
-          <dt>Banco de dados</dt>
-          <dd id="db-status" data-state="loading">Verificando...</dd>
-        </div>
-        <div class="status-item">
-          <dt>Ambiente</dt>
-          <dd id="environment">&mdash;</dd>
-        </div>
-        <div class="status-item">
-          <dt>Tempo no ar</dt>
-          <dd id="uptime">&mdash;</dd>
-        </div>
-      </dl>
+      <ul class="login-features">
+        <li>
+          <span data-icon="building" data-icon-size="18"></span>
+          <span>Carteira de imóveis organizada por tipo, finalidade e situação.</span>
+        </li>
+        <li>
+          <span data-icon="users" data-icon-size="18"></span>
+          <span>Equipe de corretores, clientes e atendimentos conectados.</span>
+        </li>
+        <li>
+          <span data-icon="shield" data-icon-size="18"></span>
+          <span>Perfis de acesso e visibilidade configuráveis no sistema.</span>
+        </li>
+      </ul>
 
-      <div class="card__actions">
-        <button type="button" id="refresh-button" class="button">Atualizar</button>
-        <span class="timestamp" id="last-checked">Última verificação: &mdash;</span>
+      <div class="login-brand__footer">
+        <span>ImobManager · versão 0.1.0</span>
+        <span>Etapa 03 · interface</span>
+      </div>
+    </section>
+
+    <section class="login-panel">
+      <div class="login-card">
+        <span class="eyebrow">Acesso restrito</span>
+        <h1>Bem-vindo de volta</h1>
+        <p class="login-card__subtitle">
+          Informe suas credenciais para acessar o ambiente de gestão.
+        </p>
+
+        <form class="login-form" id="login-form">
+          <div class="field">
+            <label class="field__label" for="login-email">E-mail</label>
+            <div class="input-group">
+              <span class="input-group__icon" data-icon="mail" data-icon-size="17"></span>
+              <input
+                class="input"
+                id="login-email"
+                name="email"
+                type="email"
+                placeholder="seu@email.com"
+                autocomplete="username"
+                required
+              >
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="login-password">Senha</label>
+            <div class="input-group input-group--action">
+              <span class="input-group__icon" data-icon="lock" data-icon-size="17"></span>
+              <input
+                class="input"
+                id="login-password"
+                name="password"
+                type="password"
+                placeholder="Digite sua senha"
+                autocomplete="current-password"
+                required
+              >
+              <button
+                type="button"
+                class="input-group__action"
+                data-toggle-password
+                aria-label="Mostrar senha"
+                aria-pressed="false"
+                data-icon="eye"
+                data-icon-size="17"
+              ></button>
+            </div>
+          </div>
+
+          <div class="login-form__meta">
+            <label class="checkbox" for="login-remember">
+              <input type="checkbox" id="login-remember" name="remember">
+              <span>Lembrar de mim</span>
+            </label>
+            <a href="#" data-action="forgot-password">Esqueci minha senha</a>
+          </div>
+
+          <button type="submit" class="btn btn--primary login-form__button">
+            Entrar no sistema
+            <span data-icon="arrow-right" data-icon-size="17"></span>
+          </button>
+        </form>
+
+        <div class="notice notice--warning login-notice">
+          <span data-icon="shield" data-icon-size="18"></span>
+          <p>
+            Prévia da interface. A autenticação real será implementada na etapa 04.
+            Use o acesso de prévia abaixo para conhecer as telas do sistema.
+          </p>
+        </div>
+
+        <a class="login-preview-link" href="/app.html">
+          Acessar prévia do sistema
+          <span data-icon="arrow-right" data-icon-size="15"></span>
+        </a>
+
+        <div class="login-status" id="login-status">
+          <span class="status-dot"></span>
+          <span>Verificando serviços...</span>
+        </div>
       </div>
     </section>
   </main>
 
-  <footer class="footer">
-    <p>ImobManager &middot; versão 0.1.0 &middot; estrutura inicial</p>
-  </footer>
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
 
-  <script src="/js/health-status.js" defer></script>
+  <script type="module" src="/js/login.js"></script>
 </body>
 </html>

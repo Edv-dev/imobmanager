@@ -2,15 +2,17 @@
 
 Sistema web de gestão para uma única imobiliária, com arquitetura cliente-servidor e API REST.
 
-**Etapa atual: 02 — Modelagem do banco de dados.**
+**Etapa atual: 03 — Interface e identidade visual.**
 
 ## Visão geral
 
-- Frontend: HTML5, CSS3 e JavaScript modular (sem frameworks).
+- Frontend: HTML5, CSS3 e JavaScript modular (sem frameworks), com SPA leve por hash.
 - Backend: Node.js com Express.
 - Banco de dados: PostgreSQL.
 - Comunicação: JSON sobre HTTP (HTTPS em produção).
-- Interfaces de negócio (imóveis, corretores, clientes, permissões) serão implementadas nas próximas etapas, conforme o roteiro.
+- Interface visual da etapa 03 concluída: login, shell, dashboard, módulos e componentes.
+- Telas de negócio não exibem dados fictícios; usam estados vazios até a persistência
+  real ser conectada nas etapas 04 a 09, conforme o roteiro.
 
 ## Arquitetura
 
@@ -47,7 +49,8 @@ imobManager/
 ├── package.json          # metadados e scripts do projeto
 ├── README.md
 ├── docs/
-│   └── banco-de-dados.md # diagrama ER, relacionamentos e regras de dados
+│   ├── banco-de-dados.md # diagrama ER, relacionamentos e regras de dados
+│   └── interface.md      # design system, telas, componentes e responsividade
 ├── migrations/
 │   ├── 001_initial_schema.up.sql   # criação das 14 tabelas, índices e seeds
 │   └── 001_initial_schema.down.sql # reversão da migration
@@ -66,7 +69,7 @@ imobManager/
 │   │   └── health.controller.js
 │   ├── services/
 │   │   └── health.service.js
-│   ├── models/           # (vazio) models de acesso a dados, a partir da etapa 05
+│   ├── models/           # (vazio) models de acesso a dados, a partir da etapa 04
 │   ├── routes/
 │   │   ├── index.js      # agrega as rotas em /api
 │   │   └── health.routes.js
@@ -75,13 +78,24 @@ imobManager/
 │   │   └── errorHandler.js # tratamento central de erros
 │   └── utils/            # (vazio) utilitários compartilhados
 ├── public/
-│   ├── index.html        # página de status (base visual provisória)
-│   ├── css/styles.css    # identidade visual base
-│   ├── js/health-status.js
-│   └── assets/           # imagens e recursos estáticos
+│   ├── index.html        # tela de login (validação visual)
+│   ├── app.html          # shell da SPA com menu, cabeçalho e outlet
+│   ├── assets/           # favicon e recursos estáticos
+│   ├── css/
+│   │   ├── base.css      # tokens, reset e tipografia
+│   │   ├── layout.css    # login, sidebar, cabeçalho e responsividade
+│   │   ├── components.css # botões, formulários, tabelas, modais e toasts
+│   │   └── pages.css     # dashboard, relatórios e administração
+│   └── js/
+│       ├── login.js      # comportamento da tela de login
+│       ├── app.js        # bootstrap da SPA e rotas
+│       ├── core/         # api, router, sessão de prévia e utilitários
+│       ├── components/   # icons, shell, tabela, formulário, modal, toast etc.
+│       └── views/        # dashboard, imóveis, corretores, clientes e demais telas
 └── tests/
     ├── api.test.js       # testes de API (healthcheck, 404, JSON inválido, estáticos)
-    └── database.test.js  # teste de indisponibilidade do banco
+    ├── database.test.js  # teste de indisponibilidade do banco
+    └── ui.test.js        # login, shell, CSS, módulos JS e favicon
 ```
 
 ## Requisitos
@@ -176,8 +190,28 @@ npm run dev
 npm start
 ```
 
-Acesse `http://localhost:3000` para a página de status e
+Acesse `http://localhost:3000` para a tela de login,
+`http://localhost:3000/app.html` para a prévia das telas internas e
 `http://localhost:3000/api/health` para o healthcheck.
+
+### Interface (etapa 03)
+
+- Login: tela visual com validação nativa, status dos serviços via `/api/health` e link
+  para a prévia. A autenticação real será implementada na etapa 04.
+- Prévia (`/app.html`): shell com sidebar, cabeçalho, banner permanente de ambiente de
+  pré-visualização, dashboard, módulos, relatórios e administração.
+- Rotas por hash: `#/dashboard`, `#/imoveis`, `#/corretores`, `#/clientes`,
+  `#/atendimentos`, `#/relatorios` e `#/administracao`.
+- Dashboard consulta o healthcheck real e exibe banco, API, uptime e ambiente.
+- Indicadores e tabelas não exibem dados fictícios; usam estado vazio com a etapa em que
+  cada informação será alimentada.
+- Formulários, filtros e ações informativas validam no navegador e deixam claro que não
+  gravam dados nesta fase.
+- Componentes reutilizáveis: botões, formulários, tabelas, paginação, modais, toasts,
+  estados vazios e toolbars.
+- Layout responsivo validado em desktop, tablet e celular.
+
+Detalhes do design system, telas e validação: [docs/interface.md](docs/interface.md).
 
 ### Healthcheck
 
@@ -202,16 +236,17 @@ e `"checks.database.status": "down"`, sem expor detalhes internos.
 ## Testes
 
 ```bash
-npm test          # testes de API e de indisponibilidade do banco
+npm test          # testes de API, banco e interface
 npm run db:ping   # teste de conectividade com o PostgreSQL
 npm run db:check  # testes de integridade do schema (rollback ao final)
 ```
 
-Os testes de API usam o test runner nativo do Node.js (`node --test`), sem dependências extras.
-O `db:check` valida tabelas, FKs, índices, seeds e regras de unicidade, exclusão lógica e cascata;
-todos os dados de teste são revertidos por rollback.
+Os testes usam o test runner nativo do Node.js (`node --test`), sem dependências extras.
+A suíte `tests/ui.test.js` verifica login, shell, folhas de estilo, módulos JavaScript e
+favicon. O `db:check` valida tabelas, FKs, índices, seeds e regras de unicidade, exclusão
+lógica e cascata; todos os dados de teste são revertidos por rollback.
 
-## Segurança já aplicada nesta etapa
+## Segurança já aplicada
 
 - Credenciais e configurações apenas via variáveis de ambiente (`.env` fora do Git).
 - `x-powered-by` desabilitado.
@@ -219,7 +254,10 @@ todos os dados de teste são revertidos por rollback.
 - Respostas de erro padronizadas, sem stack trace em produção.
 - Consultas via driver `pg` com suporte a consultas parametrizadas.
 - Encerramento seguro do servidor e do pool de conexões.
-- Autenticação, autorização, Helmet, rate limiting e CSRF serão implementados na etapa 04.
+- A interface da etapa 03 não simula autenticação: o login é claramente identificado como
+  prévia e o acesso interno usa `/app.html` com banner informativo.
+- Autenticação e proteção de rotas serão implementadas na etapa 04; autorização e
+  permissões reais no backend, na etapa 05, junto com Helmet, rate limiting e CSRF.
 
 ## Versionamento
 
@@ -230,7 +268,7 @@ A versão do `package.json` acompanha as versões definidas no roteiro (`0.1.0` 
 
 - [x] 01 — Planejamento e arquitetura
 - [x] 02 — Modelagem do banco de dados
-- [ ] 03 — Identidade visual e interface
+- [x] 03 — Identidade visual e interface
 - [ ] 04 — Autenticação e segurança
 - [ ] 05 — Administração e permissões
 - [ ] 06 — Gestão de corretores
@@ -244,6 +282,8 @@ A versão do `package.json` acompanha as versões definidas no roteiro (`0.1.0` 
 
 - **Porta 3000 em uso:** altere `PORT` no `.env`.
 - **`Banco de dados inacessível`:** confirme se o PostgreSQL está ativo, se o banco/usuário existem e se a senha no `.env` está correta.
+- **Login não autentica:** comportamento esperado na etapa 03; a autenticação será
+  implementada na etapa 04. Use `http://localhost:3000/app.html` para a prévia.
 - **Erro de autenticação do PostgreSQL:** verifique o método de autenticação configurado no `pg_hba.conf`.
 - **Checksum divergente em migration:** um arquivo já aplicado foi alterado; restaure o conteúdo original e crie uma nova migration para a mudança.
 - **Tabelas ausentes no `db:check`:** execute `npm run migrate:up`.

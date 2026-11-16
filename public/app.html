@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ImobManager - painel de gestão imobiliária">
+  <meta name="theme-color" content="#14283f">
+  <title>Dashboard · ImobManager</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/pages.css">
+</head>
+<body class="app-page">
+  <a class="skip-link" href="#main-content">Ir para o conteúdo principal</a>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Menu lateral"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+
+    <div class="app-main">
+      <header class="app-header">
+        <div class="header-context">
+          <button
+            type="button"
+            class="icon-button icon-button--ghost mobile-menu"
+            data-action="toggle-sidebar"
+            aria-label="Abrir menu de navegação"
+            aria-controls="sidebar"
+          >
+            <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <line x1="4" y1="7" x2="20" y2="7"></line>
+              <line x1="4" y1="12" x2="20" y2="12"></line>
+              <line x1="4" y1="17" x2="20" y2="17"></line>
+            </svg>
+          </button>
+          <span class="header-context__system">ImobManager</span>
+          <span class="header-context__sep" aria-hidden="true">/</span>
+          <span class="header-context__page" data-page-label>Dashboard</span>
+        </div>
+        <div class="header-actions" id="header-actions"></div>
+      </header>
+
+      <div class="preview-banner" id="preview-banner" hidden></div>
+
+      <main class="app-content" id="main-content" tabindex="-1">
+        <div class="view-outlet" id="view-outlet"></div>
+      </main>
+    </div>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
