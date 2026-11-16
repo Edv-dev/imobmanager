@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ImobManager - sistema de gestão imobiliária">
+  <title>ImobManager</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true">IM</span>
+      <div class="brand__text">
+        <strong>ImobManager</strong>
+        <span>Gestão imobiliária</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="card" aria-labelledby="status-title">
+      <h1 id="status-title">Status da aplicação</h1>
+      <p class="card__subtitle">
+        Verificação em tempo real da API REST e da conexão com o PostgreSQL.
+      </p>
+
+      <dl class="status-grid">
+        <div class="status-item">
+          <dt>API</dt>
+          <dd id="api-status" data-state="loading">Verificando...</dd>
+        </div>
+        <div class="status-item">
+          <dt>Banco de dados</dt>
+          <dd id="db-status" data-state="loading">Verificando...</dd>
+        </div>
+        <div class="status-item">
+          <dt>Ambiente</dt>
+          <dd id="environment">&mdash;</dd>
+        </div>
+        <div class="status-item">
+          <dt>Tempo no ar</dt>
+          <dd id="uptime">&mdash;</dd>
+        </div>
+      </dl>
+
+      <div class="card__actions">
+        <button type="button" id="refresh-button" class="button">Atualizar</button>
+        <span class="timestamp" id="last-checked">Última verificação: &mdash;</span>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>ImobManager &middot; versão 0.1.0 &middot; estrutura inicial</p>
+  </footer>
+
+  <script src="/js/health-status.js" defer></script>
+</body>
+</html>
