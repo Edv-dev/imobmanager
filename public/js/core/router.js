@@ -9,8 +9,8 @@ function accessDeniedView() {
         <span class="empty-state__icon">${icon('lock', 24)}</span>
         <p class="empty-state__title">Acesso não autorizado</p>
         <p class="empty-state__text">
-          Você não possui permissão para acessar esta área. Esta verificação é apenas visual;
-          a autenticação será aplicada na etapa 04 e a autorização definitiva no servidor, na etapa 05.
+          Seu perfil não possui permissão para acessar esta área. O acesso também é
+          validado pelo servidor em todas as operações.
         </p>
         <a class="btn btn--ghost" href="#/dashboard">${icon('arrow-right')} Voltar ao dashboard</a>
       </div>

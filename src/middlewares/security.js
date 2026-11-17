@@ -1,0 +1,79 @@
+'use strict';
+
+const config = require('../config/env');
+const HttpError = require('../utils/http-error');
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function origemEsperada(req) {
+  return `${req.protocol}://${req.get('host')}`;
+}
+
+function originCheck(req, res, next) {
+  if (SAFE_METHODS.has(req.method)) return next();
+
+  const secFetchSite = req.get('sec-fetch-site');
+
+  if (
+    secFetchSite &&
+    !['same-origin', 'none'].includes(secFetchSite.toLowerCase())
+  ) {
+    return next(
+      new HttpError(403, 'ORIGIN_INVALID', 'Origem da requisição não permitida.')
+    );
+  }
+
+  const origin = req.get('origin');
+
+  if (origin) {
+    let origemRecebida;
+
+    try {
+      origemRecebida = new URL(origin);
+    } catch {
+      return next(
+        new HttpError(403, 'ORIGIN_INVALID', 'Origem da requisição não permitida.')
+      );
+    }
+
+    const esperada = new URL(origemEsperada(req));
+
+    if (
+      origemRecebida.protocol !== esperada.protocol ||
+      origemRecebida.host !== esperada.host
+    ) {
+      return next(
+        new HttpError(403, 'ORIGIN_INVALID', 'Origem da requisição não permitida.')
+      );
+    }
+  }
+
+  return next();
+}
+
+function securityHeaders() {
+  return {
+    contentSecurityPolicy: {
+      directives: {
+        'default-src': ["'self'"],
+        'script-src': ["'self'"],
+        'style-src': ["'self'"],
+        'img-src': ["'self'", 'data:'],
+        'font-src': ["'self'"],
+        'connect-src': ["'self'"],
+        'object-src': ["'none'"],
+        'base-uri': ["'self'"],
+        'form-action': ["'self'"],
+        'frame-ancestors': ["'none'"],
+        'upgrade-insecure-requests': config.isProduction ? [] : null,
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: 'no-referrer' },
+  };
+}
+
+module.exports = {
+  originCheck,
+  securityHeaders,
+};

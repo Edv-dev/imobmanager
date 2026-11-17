@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ImobManager - recuperação de senha">
+  <meta name="theme-color" content="#14283f">
+  <title>Recuperar senha · ImobManager</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body class="login-page">
+  <a class="skip-link" href="#main-content">Ir para o formulário</a>
+
+  <main class="login-shell" id="main-content">
+    <section class="login-brand" aria-label="ImobManager">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">IM</span>
+        <div>
+          <p class="brand-wordmark">ImobManager</p>
+          <p class="brand-tagline">Gestão imobiliária</p>
+        </div>
+      </div>
+
+      <div class="login-brand__hero">
+        <p class="login-eyebrow">Segurança da conta</p>
+        <h1>Recupere o acesso com segurança.</h1>
+        <p>
+          Enviaremos um link de uso único e validade curta para o e-mail cadastrado.
+          Nenhum dado sensível é exibido nesta tela.
+        </p>
+      </div>
+
+      <ul class="login-features">
+        <li>
+          <span data-icon="mail" data-icon-size="18"></span>
+          <span>O link é enviado apenas para o e-mail já cadastrado no sistema.</span>
+        </li>
+        <li>
+          <span data-icon="key" data-icon-size="18"></span>
+          <span>O token expira automaticamente e não pode ser reutilizado.</span>
+        </li>
+        <li>
+          <span data-icon="shield" data-icon-size="18"></span>
+          <span>Ao redefinir a senha, todas as sessões ativas são encerradas.</span>
+        </li>
+      </ul>
+
+      <div class="login-brand__footer">
+        <span>ImobManager · versão 0.1.0</span>
+        <span>Etapa 04 · autenticação</span>
+      </div>
+    </section>
+
+    <section class="login-panel">
+      <div class="login-card">
+        <a class="login-back" href="/">
+          <span data-icon="chevron-left" data-icon-size="16"></span>
+          Voltar ao login
+        </a>
+
+        <section id="request-section">
+          <span class="eyebrow">Recuperação</span>
+          <h1>Esqueceu sua senha?</h1>
+          <p class="login-card__subtitle">
+            Informe o e-mail da sua conta. Se ele estiver cadastrado, enviaremos as
+            instruções para criar uma nova senha.
+          </p>
+
+          <form class="login-form" id="request-form">
+            <div class="field">
+              <label class="field__label" for="recovery-email">E-mail</label>
+              <div class="input-group">
+                <span class="input-group__icon" data-icon="mail" data-icon-size="17"></span>
+                <input
+                  class="input"
+                  id="recovery-email"
+                  name="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  autocomplete="username"
+                  maxlength="254"
+                  required
+                >
+              </div>
+            </div>
+
+            <div class="form-alert" id="request-error" role="alert" hidden></div>
+
+            <button type="submit" class="btn btn--primary login-form__button" id="request-submit">
+              Enviar instruções
+              <span data-icon="arrow-right" data-icon-size="17"></span>
+            </button>
+          </form>
+
+          <div class="notice notice--info login-notice">
+            <span data-icon="shield" data-icon-size="18"></span>
+            <p>
+              Por segurança, a resposta é sempre a mesma, independentemente de o e-mail
+              existir ou não no sistema.
+            </p>
+          </div>
+        </section>
+
+        <section id="reset-section" hidden>
+          <span class="eyebrow">Nova senha</span>
+          <h1>Criar nova senha</h1>
+          <p class="login-card__subtitle">
+            Escolha uma senha forte. O link de recuperação é de uso único e será
+            invalidado após a alteração.
+          </p>
+
+          <form class="login-form" id="reset-form">
+            <div class="field">
+              <label class="field__label" for="reset-password">Nova senha</label>
+              <div class="input-group input-group--action">
+                <span class="input-group__icon" data-icon="lock" data-icon-size="17"></span>
+                <input
+                  class="input"
+                  id="reset-password"
+                  name="novaSenha"
+                  type="password"
+                  placeholder="Mínimo de 12 caracteres"
+                  autocomplete="new-password"
+                  minlength="12"
+                  maxlength="128"
+                  required
+                >
+                <button
+                  type="button"
+                  class="input-group__action"
+                  data-toggle-password
+                  data-target="reset-password"
+                  aria-label="Mostrar senha"
+                  aria-pressed="false"
+                  data-icon="eye"
+                  data-icon-size="17"
+                ></button>
+              </div>
+              <p class="field__hint">Use pelo menos 12 caracteres, incluindo letras e números.</p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="reset-confirm">Confirmar nova senha</label>
+              <div class="input-group input-group--action">
+                <span class="input-group__icon" data-icon="lock" data-icon-size="17"></span>
+                <input
+                  class="input"
+                  id="reset-confirm"
+                  name="confirmacao"
+                  type="password"
+                  placeholder="Repita a nova senha"
+                  autocomplete="new-password"
+                  minlength="12"
+                  maxlength="128"
+                  required
+                >
+                <button
+                  type="button"
+                  class="input-group__action"
+                  data-toggle-password
+                  data-target="reset-confirm"
+                  aria-label="Mostrar senha"
+                  aria-pressed="false"
+                  data-icon="eye"
+                  data-icon-size="17"
+                ></button>
+              </div>
+            </div>
+
+            <div class="form-alert" id="reset-error" role="alert" hidden></div>
+
+            <button type="submit" class="btn btn--primary login-form__button" id="reset-submit">
+              Redefinir senha
+              <span data-icon="arrow-right" data-icon-size="17"></span>
+            </button>
+          </form>
+
+          <div class="notice notice--warning login-notice">
+            <span data-icon="alert-circle" data-icon-size="18"></span>
+            <p>
+              Ao concluir, todas as sessões abertas serão encerradas e você deverá
+              entrar novamente.
+            </p>
+          </div>
+        </section>
+
+        <section id="success-section" class="recovery-success" hidden>
+          <span class="recovery-success__icon" data-icon="check-circle" data-icon-size="28"></span>
+          <h1 id="success-title">Verifique seu e-mail</h1>
+          <p class="login-card__subtitle" id="success-message">
+            Se o e-mail informado estiver cadastrado, enviaremos as instruções de
+            recuperação.
+          </p>
+          <a class="btn btn--primary login-form__button" href="/" id="success-action">
+            Voltar ao login
+            <span data-icon="arrow-right" data-icon-size="17"></span>
+          </a>
+        </section>
+
+        <div class="login-status" id="login-status">
+          <span class="status-dot"></span>
+          <span>Verificando serviços...</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+
+  <script type="module" src="/js/recuperar-senha.js"></script>
+</body>
+</html>

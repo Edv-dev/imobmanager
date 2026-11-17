@@ -2,7 +2,7 @@
 
 Sistema web de gestão para uma única imobiliária, com arquitetura cliente-servidor e API REST.
 
-**Etapa atual: 03 — Interface e identidade visual.**
+**Etapa atual: 04 — Autenticação e segurança.**
 
 ## Visão geral
 
@@ -10,23 +10,26 @@ Sistema web de gestão para uma única imobiliária, com arquitetura cliente-ser
 - Backend: Node.js com Express.
 - Banco de dados: PostgreSQL.
 - Comunicação: JSON sobre HTTP (HTTPS em produção).
-- Interface visual da etapa 03 concluída: login, shell, dashboard, módulos e componentes.
+- Autenticação real por e-mail e senha, sessões no servidor, recuperação de senha e
+  auditoria dos eventos de acesso.
 - Telas de negócio não exibem dados fictícios; usam estados vazios até a persistência
-  real ser conectada nas etapas 04 a 09, conforme o roteiro.
+  real ser conectada nas etapas 05 a 09, conforme o roteiro.
 
 ## Arquitetura
 
 ```text
 Navegador (HTML/CSS/JS)
         |
-        | HTTP/JSON (REST)
+        | HTTP/JSON + cookie de sessão HttpOnly
         v
 Express (src/app.js)
+  -> Helmet, limite de corpo e cookie-parser
+  -> verificação de origem, sessão e CSRF
   -> rotas (/api)
   -> controllers (entrada/saída HTTP)
-  -> services (regras de negócio)
+  -> services (regras de negócio e autenticação)
   -> models (acesso a dados)
-  -> middlewares (erros, autenticação futura)
+  -> middlewares (autenticação, autorização e erros)
         |
         v
 PostgreSQL (pool único em src/config/database.js)
@@ -34,11 +37,14 @@ PostgreSQL (pool único em src/config/database.js)
 
 Princípios adotados:
 
-- Separação clara entre frontend (`public/`), backend (`src/`) e banco de dados.
-- Código modular por responsabilidade: `routes`, `controllers`, `services`, `models`, `middlewares`, `config`.
-- Nenhuma regra de negócio na interface; toda validação será feita no servidor.
+- Separação entre frontend (`public/`), backend (`src/`) e banco de dados.
+- Código modular por responsabilidade: `routes`, `controllers`, `services`, `models`,
+  `middlewares`, `config` e `utils`.
+- Nenhuma regra de segurança ou permissão é aplicada apenas na interface. O servidor
+  valida a sessão, o CSRF e as permissões em todas as operações.
 - Variáveis de ambiente para toda configuração sensível.
-- Estrutura preparada para autenticação, autorização e testes automatizados.
+- Erros padronizados sem stack trace em produção e sem revelar se uma conta existe.
+- Eventos de login, bloqueio, logout e recuperação de senha registrados em `auditoria`.
 
 ## Estrutura de diretórios
 
@@ -49,53 +55,75 @@ imobManager/
 ├── package.json          # metadados e scripts do projeto
 ├── README.md
 ├── docs/
+│   ├── autenticacao.md   # fluxos, endpoints, sessões e decisões de segurança
 │   ├── banco-de-dados.md # diagrama ER, relacionamentos e regras de dados
 │   └── interface.md      # design system, telas, componentes e responsividade
 ├── migrations/
-│   ├── 001_initial_schema.up.sql   # criação das 14 tabelas, índices e seeds
-│   └── 001_initial_schema.down.sql # reversão da migration
+│   ├── 001_initial_schema.up.sql       # schema de negócio e seeds
+│   ├── 001_initial_schema.down.sql
+│   ├── 002_auth_sessions.up.sql        # sessões e recuperação de senha
+│   └── 002_auth_sessions.down.sql
 ├── scripts/
+│   ├── create-admin.js   # administrador inicial interativo (npm run admin:create)
 │   ├── db-ping.js        # verifica a conexão com o PostgreSQL
 │   ├── db-integrity-check.js # testes de integridade com rollback
 │   ├── migrate.js        # runner de migrations (up/down/status)
 │   └── setup-database.sh # cria usuário e banco dedicados
 ├── src/
-│   ├── app.js            # configuração do Express (middlewares, rotas, estáticos)
+│   ├── app.js            # Helmet, cookies, sessão, CSRF, estáticos e rotas
 │   ├── server.js         # inicialização e encerramento seguro do servidor
 │   ├── config/
 │   │   ├── env.js        # carregamento e validação das variáveis de ambiente
 │   │   └── database.js   # pool de conexões e verificação de saúde do banco
 │   ├── controllers/
+│   │   ├── auth.controller.js
 │   │   └── health.controller.js
 │   ├── services/
+│   │   ├── auth.service.js
+│   │   ├── email.service.js
 │   │   └── health.service.js
-│   ├── models/           # (vazio) models de acesso a dados, a partir da etapa 04
+│   ├── models/
+│   │   ├── auditoria.model.js
+│   │   ├── recuperacao.model.js
+│   │   ├── sessao.model.js
+│   │   └── usuario.model.js
 │   ├── routes/
 │   │   ├── index.js      # agrega as rotas em /api
+│   │   ├── auth.routes.js
 │   │   └── health.routes.js
 │   ├── middlewares/
-│   │   ├── notFound.js   # resposta 404 padronizada em JSON
-│   │   └── errorHandler.js # tratamento central de erros
-│   └── utils/            # (vazio) utilitários compartilhados
+│   │   ├── auth.js       # sessão, autorização, CSRF e proteção de páginas
+│   │   ├── security.js   # verificação de origem e cabeçalhos de segurança
+│   │   ├── rateLimiters.js
+│   │   ├── notFound.js
+│   │   └── errorHandler.js
+│   └── utils/
+│       ├── http-error.js
+│       ├── password.js   # bcrypt com custo 12
+│       ├── tokens.js     # tokens aleatórios, hash e CSRF
+│       └── validators.js
 ├── public/
-│   ├── index.html        # tela de login (validação visual)
-│   ├── app.html          # shell da SPA com menu, cabeçalho e outlet
+│   ├── index.html        # login real
+│   ├── app.html          # shell autenticado da SPA
+│   ├── recuperar-senha.html # solicitação e redefinição de senha
 │   ├── assets/           # favicon e recursos estáticos
 │   ├── css/
 │   │   ├── base.css      # tokens, reset e tipografia
-│   │   ├── layout.css    # login, sidebar, cabeçalho e responsividade
+│   │   ├── layout.css    # login, recuperação, sidebar, cabeçalho e responsividade
 │   │   ├── components.css # botões, formulários, tabelas, modais e toasts
 │   │   └── pages.css     # dashboard, relatórios e administração
 │   └── js/
-│       ├── login.js      # comportamento da tela de login
-│       ├── app.js        # bootstrap da SPA e rotas
-│       ├── core/         # api, router, sessão de prévia e utilitários
+│       ├── login.js      # login real e estados de erro
+│       ├── recuperar-senha.js
+│       ├── app.js        # bootstrap da SPA e proteção de sessão
+│       ├── core/         # api, router, sessão e utilitários
 │       ├── components/   # icons, shell, tabela, formulário, modal, toast etc.
 │       └── views/        # dashboard, imóveis, corretores, clientes e demais telas
 └── tests/
-    ├── api.test.js       # testes de API (healthcheck, 404, JSON inválido, estáticos)
-    ├── database.test.js  # teste de indisponibilidade do banco
-    └── ui.test.js        # login, shell, CSS, módulos JS e favicon
+    ├── api.test.js       # healthcheck, 404, JSON inválido e estáticos
+    ├── auth.test.js      # login, sessão, CSRF, bloqueio, recuperação e headers
+    ├── database.test.js  # indisponibilidade do banco
+    └── ui.test.js        # login, área protegida, recuperação, CSS e módulos JS
 ```
 
 ## Requisitos
@@ -103,6 +131,7 @@ imobManager/
 - Node.js 20 ou superior (validado com Node.js 22).
 - PostgreSQL 14 ou superior (validado com PostgreSQL 18).
 - Acesso ao `psql` ou a um cliente PostgreSQL.
+- Servidor SMTP opcional para envio real dos e-mails de recuperação de senha.
 
 ## Instalação
 
@@ -111,7 +140,20 @@ npm install
 cp .env.example .env
 ```
 
-Edite o arquivo `.env` e preencha, no mínimo, `DB_PASSWORD` com a senha do usuário do banco.
+Edite o `.env` e preencha:
+
+- `DB_PASSWORD` com a senha do usuário do banco;
+- `SESSION_SECRET` com um valor aleatório de pelo menos 32 caracteres;
+- dados de SMTP, se quiser recuperação de senha por e-mail em produção.
+
+Gere um segredo de sessão com:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(48).toString('hex'))"
+```
+
+Sem `SESSION_SECRET`, o ambiente de desenvolvimento gera um segredo efêmero e avisa no
+console. Em produção o servidor recusa iniciar sem um segredo forte.
 
 ## Configuração do banco de dados
 
@@ -150,35 +192,75 @@ As migrations ficam em `migrations/`, são aplicadas em transação e registrada
 `schema_migrations` com checksum SHA-256. Alterar um arquivo já aplicado bloqueia novas execuções
 até a correção ser tratada.
 
+### Administrador inicial
+
+Nenhuma credencial padrão é criada automaticamente. Depois de aplicar as migrations, crie o
+primeiro administrador em um terminal interativo:
+
+```bash
+npm run admin:create
+```
+
+O comando solicita nome, e-mail, senha e confirmação; a senha é digitada sem eco e precisa ter
+pelo menos 12 caracteres, com letras e números. A senha é persistida apenas como hash bcrypt.
+Também é possível criar outros administradores executando o comando novamente com outro e-mail.
+
 ## Modelo de dados
 
-A etapa 02 cria 14 tabelas: `perfis`, `usuarios`, `permissoes`, `perfis_permissoes`,
+A etapa 02 cria 14 tabelas de negócio: `perfis`, `usuarios`, `permissoes`, `perfis_permissoes`,
 `permissoes_usuarios`, `corretores`, `clientes`, `imoveis`, `imagens_imoveis`,
 `imoveis_corretores`, `clientes_corretores`, `atendimentos`, `configuracoes` e `auditoria`.
+
+A etapa 04 adiciona 2 tabelas de segurança:
+
+- `sessoes`: sessões autenticadas com hash SHA-256 do token, expiração, IP, user agent e
+  revogação explícita;
+- `recuperacoes_senha`: tokens de recuperação com hash SHA-256, expiração curta e uso único.
+
+Regras relevantes:
 
 - Permissões gerais (`perfis_permissoes`) e individuais (`permissoes_usuarios`) ficam em tabelas separadas.
 - Exceções individuais têm precedência sobre as permissões do perfil.
 - O perfil administrador é identificado por `perfis.administrativo` e independe do cadastro de corretor.
 - Exclusão lógica em usuários, corretores, clientes e imóveis, com índices únicos parciais.
 - Visibilidade de imóveis e clientes configurada por chave em `configuracoes`.
+- Senhas usam bcrypt com custo 12; nunca são gravadas ou registradas em texto puro.
+- Tokens de sessão e recuperação são aleatórios (32 bytes) e só o hash é persistido.
 
 Detalhes, diagrama ER e precedência de permissões: [docs/banco-de-dados.md](docs/banco-de-dados.md).
 
 ## Variáveis de ambiente
 
-| Variável       | Padrão        | Descrição                                                        |
-| -------------- | ------------- | ---------------------------------------------------------------- |
-| `NODE_ENV`     | `development` | Ambiente de execução (`development`, `test`, `production`).       |
-| `PORT`         | `3000`        | Porta HTTP do servidor.                                          |
-| `HOST`         | `0.0.0.0`     | Endereço de escuta.                                              |
-| `DB_HOST`      | `localhost`   | Host do PostgreSQL.                                              |
-| `DB_PORT`      | `5432`        | Porta do PostgreSQL.                                             |
-| `DB_NAME`      | `imobmanager` | Nome do banco de dados.                                          |
-| `DB_USER`      | `imobmanager` | Usuário do banco de dados.                                       |
-| `DB_PASSWORD`  | *(vazio)*     | Senha do banco. Obrigatória em produção.                         |
-| `DB_SSL`       | `false`       | Usa conexão SSL com o banco (`true`/`false`).                    |
-| `DB_POOL_MAX`  | `10`          | Máximo de conexões simultâneas no pool.                          |
-| `DATABASE_URL` | *(vazio)*     | URL completa de conexão; quando definida, substitui as `DB_*`.   |
+| Variável                   | Padrão        | Descrição                                                        |
+| -------------------------- | ------------- | ---------------------------------------------------------------- |
+| `NODE_ENV`                 | `development` | Ambiente (`development`, `test`, `production`).                  |
+| `PORT`                     | `3000`        | Porta HTTP do servidor.                                          |
+| `HOST`                     | `0.0.0.0`     | Endereço de escuta.                                              |
+| `APP_URL`                  | `http://localhost:3000` | URL pública usada nos links de recuperação.          |
+| `SESSION_SECRET`           | *(vazio)*     | Segredo para derivação de CSRF; obrigatório em produção.         |
+| `SESSION_TTL_MINUTES`      | `480`         | Duração da sessão normal (8 horas).                              |
+| `SESSION_REMEMBER_DAYS`    | `7`           | Duração ao marcar "Lembrar de mim" (7 dias).                     |
+| `AUTH_MAX_ATTEMPTS`        | `5`           | Tentativas de senha antes do bloqueio temporário.                |
+| `AUTH_LOCK_MINUTES`        | `15`          | Minutos de bloqueio após exceder as tentativas.                  |
+| `PASSWORD_RESET_TTL_MINUTES` | `30`        | Validade do link de recuperação de senha.                        |
+| `DB_HOST`                  | `localhost`   | Host do PostgreSQL.                                              |
+| `DB_PORT`                  | `5432`        | Porta do PostgreSQL.                                             |
+| `DB_NAME`                  | `imobmanager` | Nome do banco de dados.                                          |
+| `DB_USER`                  | `imobmanager` | Usuário do banco de dados.                                       |
+| `DB_PASSWORD`              | *(vazio)*     | Senha do banco. Obrigatória em produção.                         |
+| `DB_SSL`                   | `false`       | Usa conexão SSL com o banco (`true`/`false`).                    |
+| `DB_POOL_MAX`              | `10`          | Máximo de conexões simultâneas no pool.                          |
+| `DATABASE_URL`             | *(vazio)*     | URL completa de conexão; quando definida, substitui as `DB_*`.   |
+| `SMTP_HOST`                | *(vazio)*     | Servidor SMTP para recuperação de senha.                         |
+| `SMTP_PORT`                | `587`         | Porta do SMTP.                                                   |
+| `SMTP_SECURE`              | `false`       | Usa TLS direto (normalmente `true` na porta 465).                |
+| `SMTP_USER`                | *(vazio)*     | Usuário de autenticação SMTP.                                    |
+| `SMTP_PASSWORD`            | *(vazio)*     | Senha de autenticação SMTP.                                      |
+| `SMTP_FROM`                | *(vazio)*     | Remetente dos e-mails de recuperação.                            |
+
+Em desenvolvimento sem SMTP configurado, o link de recuperação é exibido apenas no console
+do servidor. Em produção sem SMTP, nenhum token é exposto e um aviso é registrado; configure
+o SMTP para que a recuperação por e-mail funcione.
 
 ## Execução
 
@@ -190,28 +272,50 @@ npm run dev
 npm start
 ```
 
-Acesse `http://localhost:3000` para a tela de login,
-`http://localhost:3000/app.html` para a prévia das telas internas e
-`http://localhost:3000/api/health` para o healthcheck.
+Acesse:
 
-### Interface (etapa 03)
+- `http://localhost:3000` — login;
+- `http://localhost:3000/app.html` — área interna, disponível somente com sessão válida;
+- `http://localhost:3000/recuperar-senha.html` — solicitação e redefinição de senha;
+- `http://localhost:3000/api/health` — healthcheck.
 
-- Login: tela visual com validação nativa, status dos serviços via `/api/health` e link
-  para a prévia. A autenticação real será implementada na etapa 04.
-- Prévia (`/app.html`): shell com sidebar, cabeçalho, banner permanente de ambiente de
-  pré-visualização, dashboard, módulos, relatórios e administração.
+### Autenticação e interface
+
+- Login real por e-mail e senha, com erro genérico para credenciais inválidas.
+- Bloqueio temporário após 5 tentativas de senha incorretas (configurável).
+- Sessão em cookie `HttpOnly`, `SameSite=Lax`, `Path=/` e `Secure` em produção.
+- Expiração de 8 horas por padrão ou 7 dias ao marcar "Lembrar de mim".
+- Logout revoga a sessão no banco e limpa o cookie.
+- Recuperação de senha com token de uso único, expiração de 30 minutos e revogação de
+  todas as sessões após a redefinição.
+- `/app.html` é protegido no servidor; a SPA carrega usuário e permissões reais de
+  `GET /api/auth/session`.
 - Rotas por hash: `#/dashboard`, `#/imoveis`, `#/corretores`, `#/clientes`,
   `#/atendimentos`, `#/relatorios` e `#/administracao`.
+- A navegação respeita as permissões retornadas pelo servidor, mas a autorização
+  definitiva é sempre aplicada no backend.
 - Dashboard consulta o healthcheck real e exibe banco, API, uptime e ambiente.
 - Indicadores e tabelas não exibem dados fictícios; usam estado vazio com a etapa em que
   cada informação será alimentada.
-- Formulários, filtros e ações informativas validam no navegador e deixam claro que não
-  gravam dados nesta fase.
-- Componentes reutilizáveis: botões, formulários, tabelas, paginação, modais, toasts,
-  estados vazios e toolbars.
-- Layout responsivo validado em desktop, tablet e celular.
+- Formulários de negócio, filtros e ações informativas continuam sem persistência até as
+  etapas correspondentes.
+- Layout responsivo validado em desktop e celular.
 
-Detalhes do design system, telas e validação: [docs/interface.md](docs/interface.md).
+Detalhes do design system e das telas: [docs/interface.md](docs/interface.md).
+Fluxos e decisões de segurança: [docs/autenticacao.md](docs/autenticacao.md).
+
+### API de autenticação
+
+| Método | Rota                       | Descrição                                             |
+| ------ | -------------------------- | ----------------------------------------------------- |
+| POST   | `/api/auth/login`          | Autentica e cria a sessão.                            |
+| GET    | `/api/auth/session`        | Retorna usuário, permissões, CSRF e expiração.        |
+| POST   | `/api/auth/logout`         | Revoga a sessão (exige CSRF).                         |
+| POST   | `/api/auth/forgot-password`| Solicita recuperação com resposta genérica.           |
+| POST   | `/api/auth/reset-password` | Redefine a senha com token de uso único.              |
+
+Todas as respostas de autenticação usam `Cache-Control: no-store`. Operações autenticadas
+que alteram estado exigem o cabeçalho `X-CSRF-Token`, obtido em `GET /api/auth/session`.
 
 ### Healthcheck
 
@@ -236,28 +340,47 @@ e `"checks.database.status": "down"`, sem expor detalhes internos.
 ## Testes
 
 ```bash
-npm test          # testes de API, banco e interface
+npm test          # testes de API, autenticação, banco e interface
 npm run db:ping   # teste de conectividade com o PostgreSQL
 npm run db:check  # testes de integridade do schema (rollback ao final)
 ```
 
-Os testes usam o test runner nativo do Node.js (`node --test`), sem dependências extras.
-A suíte `tests/ui.test.js` verifica login, shell, folhas de estilo, módulos JavaScript e
-favicon. O `db:check` valida tabelas, FKs, índices, seeds e regras de unicidade, exclusão
-lógica e cascata; todos os dados de teste são revertidos por rollback.
+Os testes usam o test runner nativo do Node.js (`node --test`). A suíte `tests/auth.test.js`
+cria usuários temporários no banco configurado, valida login, sessão, CSRF, origem,
+bloqueio, recuperação, revogação e cabeçalhos de segurança, e remove os dados ao final.
+A suíte `tests/ui.test.js` verifica login, proteção de `/app.html`, recuperação, folhas de
+estilo, módulos JavaScript e favicon. O `db:check` valida tabelas, FKs, índices, seeds e
+regras de unicidade, exclusão lógica e cascata; todos os dados de teste são revertidos
+por rollback.
 
-## Segurança já aplicada
+## Segurança aplicada
 
-- Credenciais e configurações apenas via variáveis de ambiente (`.env` fora do Git).
-- `x-powered-by` desabilitado.
+- Helmet com Content Security Policy restritiva (sem `unsafe-inline` nem `unsafe-eval`).
+- `x-powered-by` desabilitado, `X-Content-Type-Options: nosniff`, política de referência
+  `no-referrer` e bloqueio de enquadramento.
+- Senhas com bcrypt (custo 12), política mínima de 12 caracteres com letras e números.
+- Comparação de senha com hash fictício quando o e-mail não existe, reduzindo diferenças
+  de tempo entre conta existente e inexistente.
+- Sessões opacas, com token de 32 bytes; apenas o hash SHA-256 fica no banco.
+- Cookie de sessão `HttpOnly`, `SameSite=Lax`, `Path=/` e `Secure` em produção.
+- CSRF por token derivado da sessão e enviado no cabeçalho `X-CSRF-Token` em operações
+  autenticadas que alteram estado.
+- Verificação de `Origin`/`Sec-Fetch-Site` para requisições de escrita.
+- Rate limiting em login, recuperação, redefinição e API.
+- Bloqueio temporário de conta após tentativas excessivas e expiração do bloqueio.
+- Recuperação de senha com token de uso único, hash no banco, expiração curta, resposta
+  genérica e revogação de todas as sessões após a troca.
+- Autorização no servidor por permissões carregadas do banco, incluindo exceções
+  individuais sobre o perfil.
+- Auditoria de login, falhas, bloqueio, logout, solicitação de recuperação e redefinição,
+  sem registrar senhas ou tokens.
 - Limite de tamanho para corpos JSON e formulários (`1mb`).
-- Respostas de erro padronizadas, sem stack trace em produção.
-- Consultas via driver `pg` com suporte a consultas parametrizadas.
-- Encerramento seguro do servidor e do pool de conexões.
-- A interface da etapa 03 não simula autenticação: o login é claramente identificado como
-  prévia e o acesso interno usa `/app.html` com banner informativo.
-- Autenticação e proteção de rotas serão implementadas na etapa 04; autorização e
-  permissões reais no backend, na etapa 05, junto com Helmet, rate limiting e CSRF.
+- Erros padronizados, sem stack trace em produção e sem detalhes internos.
+- Consultas parametrizadas via `pg`.
+
+Limitações atuais: o rate limiting usa memória do processo (adequado a uma instância) e
+o envio de e-mail exige SMTP configurado. A gestão de usuários, permissões individuais e
+configurações administrativas será implementada na etapa 05.
 
 ## Versionamento
 
@@ -269,7 +392,7 @@ A versão do `package.json` acompanha as versões definidas no roteiro (`0.1.0` 
 - [x] 01 — Planejamento e arquitetura
 - [x] 02 — Modelagem do banco de dados
 - [x] 03 — Identidade visual e interface
-- [ ] 04 — Autenticação e segurança
+- [x] 04 — Autenticação e segurança
 - [ ] 05 — Administração e permissões
 - [ ] 06 — Gestão de corretores
 - [ ] 07 — Gestão de imóveis
@@ -282,8 +405,12 @@ A versão do `package.json` acompanha as versões definidas no roteiro (`0.1.0` 
 
 - **Porta 3000 em uso:** altere `PORT` no `.env`.
 - **`Banco de dados inacessível`:** confirme se o PostgreSQL está ativo, se o banco/usuário existem e se a senha no `.env` está correta.
-- **Login não autentica:** comportamento esperado na etapa 03; a autenticação será
-  implementada na etapa 04. Use `http://localhost:3000/app.html` para a prévia.
+- **Login não autentica:** confirme se as migrations foram aplicadas e se existe um
+  administrador criado com `npm run admin:create`. Não há credenciais padrão.
+- **Não recebi o e-mail de recuperação:** em desenvolvimento, consulte o link no console
+  do servidor; em produção, configure `SMTP_HOST` e `SMTP_FROM`.
+- **Sessão expirou:** entre novamente; a duração é configurável por `SESSION_TTL_MINUTES`.
+- **`SESSION_SECRET` inválido:** em produção, use pelo menos 32 caracteres aleatórios.
 - **Erro de autenticação do PostgreSQL:** verifique o método de autenticação configurado no `pg_hba.conf`.
 - **Checksum divergente em migration:** um arquivo já aplicado foi alterado; restaure o conteúdo original e crie uma nova migration para a mudança.
 - **Tabelas ausentes no `db:check`:** execute `npm run migrate:up`.

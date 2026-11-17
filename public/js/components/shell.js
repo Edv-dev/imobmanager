@@ -1,7 +1,9 @@
 import { icon } from './icons.js';
 import { confirmDialog } from './modal.js';
-import { possuiPermissao } from '../core/session.js';
-import { initials } from '../core/utils.js';
+import { possuiPermissao, encerrarSessaoLocal } from '../core/session.js';
+import { initials, escapeHtml } from '../core/utils.js';
+import { request } from '../core/api.js';
+import { showToast } from './toast.js';
 
 const NAV_GROUPS = [
   {
@@ -60,14 +62,12 @@ function renderNavigation(session) {
 export function initShell({ session }) {
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebar-overlay');
-  const banner = document.getElementById('preview-banner');
   const headerActions = document.getElementById('header-actions');
   const pageLabel = document.querySelector('[data-page-label]');
 
-  const modoPrevia = session.modo === 'previa';
-  const nomeExibicao = modoPrevia ? 'Pré-visualização' : session.usuario.nome;
-  const perfilExibicao = modoPrevia ? 'Sessão não autenticada' : session.usuario.perfil;
-  const avatarText = modoPrevia ? 'PV' : initials(session.usuario.nome);
+  const nomeExibicao = escapeHtml(session.usuario.nome);
+  const perfilExibicao = escapeHtml(session.usuario.perfil);
+  const avatarText = escapeHtml(initials(session.usuario.nome));
 
   sidebar.innerHTML = `
     <div class="sidebar__brand">
@@ -94,20 +94,7 @@ export function initShell({ session }) {
     </div>
   `;
 
-  banner.hidden = !modoPrevia;
-  banner.innerHTML = modoPrevia
-    ? `
-      <span class="preview-banner__icon">${icon('shield', 16)}</span>
-      <p>
-          <strong>Ambiente de pré-visualização.</strong>
-          A autenticação real será implementada na etapa 04 e as permissões, na etapa 05. Nenhum dado é gravado nesta tela.
-      </p>
-      <a class="preview-banner__link" href="/">Ver tela de login ${icon('arrow-right', 14)}</a>
-    `
-    : '';
-
   headerActions.innerHTML = `
-    ${modoPrevia ? `<span class="preview-chip">${icon('shield', 14)} Prévia</span>` : ''}
     <div class="header-user">
       <div class="header-user__text">
         <strong>${nomeExibicao}</strong>
@@ -150,17 +137,39 @@ export function initShell({ session }) {
     if (window.innerWidth > 1024) closeSidebar();
   });
 
-  document.querySelector('[data-action="logout"]').addEventListener('click', async () => {
+  const logoutButton = document.querySelector('[data-action="logout"]');
+
+  logoutButton.addEventListener('click', async () => {
     const confirmado = await confirmDialog({
       title: 'Sair do sistema',
-      message: modoPrevia
-        ? 'Você retornará à tela de login. A sessão autenticada será implementada na etapa 04.'
-        : 'Deseja encerrar a sessão atual?',
+      message: 'Deseja encerrar a sessão atual?',
       confirmLabel: 'Sair',
       tone: 'primary',
     });
 
-    if (confirmado) window.location.href = '/';
+    if (!confirmado) return;
+
+    logoutButton.disabled = true;
+
+    try {
+      await request('/api/auth/logout', { method: 'POST' });
+      encerrarSessaoLocal();
+      window.location.assign('/');
+    } catch (error) {
+      logoutButton.disabled = false;
+
+      if (error.status === 401) {
+        encerrarSessaoLocal();
+        window.location.assign('/');
+        return;
+      }
+
+      showToast({
+        type: 'error',
+        title: 'Não foi possível encerrar a sessão',
+        message: error.message,
+      });
+    }
   });
 
   return {

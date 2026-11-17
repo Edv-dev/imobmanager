@@ -50,7 +50,7 @@
 
       <div class="login-brand__footer">
         <span>ImobManager · versão 0.1.0</span>
-        <span>Etapa 03 · interface</span>
+        <span>Etapa 04 · acesso seguro</span>
       </div>
     </section>
 
@@ -109,8 +109,10 @@
               <input type="checkbox" id="login-remember" name="remember">
               <span>Lembrar de mim</span>
             </label>
-            <a href="#" data-action="forgot-password">Esqueci minha senha</a>
+            <a href="/recuperar-senha.html">Esqueci minha senha</a>
           </div>
+
+          <div class="form-alert" id="login-error" role="alert" hidden></div>
 
           <button type="submit" class="btn btn--primary login-form__button">
             Entrar no sistema
@@ -118,18 +120,13 @@
           </button>
         </form>
 
-        <div class="notice notice--warning login-notice">
+        <div class="notice notice--info login-notice">
           <span data-icon="shield" data-icon-size="18"></span>
           <p>
-            Prévia da interface. A autenticação real será implementada na etapa 04.
-            Use o acesso de prévia abaixo para conhecer as telas do sistema.
+            Acesso protegido. Sua sessão expira automaticamente e as operações são
+            registradas para segurança do sistema.
           </p>
         </div>
-
-        <a class="login-preview-link" href="/app.html">
-          Acessar prévia do sistema
-          <span data-icon="arrow-right" data-icon-size="15"></span>
-        </a>
 
         <div class="login-status" id="login-status">
           <span class="status-dot"></span>

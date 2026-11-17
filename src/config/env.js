@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('node:path');
+const crypto = require('node:crypto');
 const dotenv = require('dotenv');
 
 dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env'), quiet: true });
@@ -18,14 +19,38 @@ function toBool(value, fallback = false) {
 
 const nodeEnv = process.env.NODE_ENV || 'development';
 const databaseUrl = process.env.DATABASE_URL || '';
+const port = toInt(process.env.PORT, 3000);
+const host = process.env.HOST || '0.0.0.0';
 
 const config = {
   env: nodeEnv,
   isProduction: nodeEnv === 'production',
   isTest: nodeEnv === 'test',
   server: {
-    port: toInt(process.env.PORT, 3000),
-    host: process.env.HOST || '0.0.0.0',
+    port,
+    host,
+  },
+  app: {
+    url: (process.env.APP_URL || `http://localhost:${port}`).replace(/\/$/, ''),
+  },
+  session: {
+    cookieName: 'imobmanager_sid',
+    secret: process.env.SESSION_SECRET || '',
+    ttlMinutes: toInt(process.env.SESSION_TTL_MINUTES, 480),
+    rememberDays: toInt(process.env.SESSION_REMEMBER_DAYS, 7),
+  },
+  auth: {
+    maxAttempts: toInt(process.env.AUTH_MAX_ATTEMPTS, 5),
+    lockMinutes: toInt(process.env.AUTH_LOCK_MINUTES, 15),
+    resetTtlMinutes: toInt(process.env.PASSWORD_RESET_TTL_MINUTES, 30),
+  },
+  smtp: {
+    host: process.env.SMTP_HOST || '',
+    port: toInt(process.env.SMTP_PORT, 587),
+    secure: toBool(process.env.SMTP_SECURE, toInt(process.env.SMTP_PORT, 587) === 465),
+    user: process.env.SMTP_USER || '',
+    password: process.env.SMTP_PASSWORD || '',
+    from: process.env.SMTP_FROM || '',
   },
   db: {
     url: databaseUrl,
@@ -48,6 +73,27 @@ function assertConfig() {
 
   if (!host) {
     throw new Error('Configuração inválida: HOST não pode ser vazio.');
+  }
+
+  if (!config.session.secret) {
+    if (config.isProduction) {
+      throw new Error('Configuração inválida: SESSION_SECRET é obrigatório em produção.');
+    }
+
+    config.session.secret = crypto.randomBytes(32).toString('hex');
+    console.warn(
+      '[config] SESSION_SECRET ausente; usando segredo efêmero nesta execução. Defina a variável no .env.'
+    );
+  } else if (config.isProduction && config.session.secret.length < 32) {
+    throw new Error('Configuração inválida: SESSION_SECRET deve ter pelo menos 32 caracteres em produção.');
+  }
+
+  if (!Number.isInteger(config.session.ttlMinutes) || config.session.ttlMinutes < 5) {
+    throw new Error('Configuração inválida: SESSION_TTL_MINUTES deve ser pelo menos 5.');
+  }
+
+  if (!Number.isInteger(config.auth.maxAttempts) || config.auth.maxAttempts < 3) {
+    throw new Error('Configuração inválida: AUTH_MAX_ATTEMPTS deve ser pelo menos 3.');
   }
 
   if (!config.db.url) {

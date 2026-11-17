@@ -16,6 +16,8 @@ const EXPECTED_TABLES = [
   'perfis_permissoes',
   'permissoes',
   'permissoes_usuarios',
+  'recuperacoes_senha',
+  'sessoes',
   'usuarios',
 ];
 
@@ -40,6 +42,8 @@ const EXPECTED_FKS = [
   'fk_atendimentos_criado_por',
   'fk_configuracoes_atualizado_por',
   'fk_auditoria_usuario',
+  'fk_sessoes_usuario',
+  'fk_recuperacoes_senha_usuario',
 ];
 
 const EXPECTED_UNIQUE_INDEXES = [
@@ -134,7 +138,7 @@ async function main() {
     const existingTables = new Set(tables.map((row) => row.table_name));
     const missingTables = EXPECTED_TABLES.filter((table) => !existingTables.has(table));
 
-    await check('Todas as 14 tabelas existem no schema public', async () => {
+    await check('Todas as 16 tabelas existem no schema public', async () => {
       if (missingTables.length > 0) {
         throw new Error(`Tabelas ausentes: ${missingTables.join(', ')}. Execute npm run migrate:up.`);
       }

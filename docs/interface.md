@@ -1,17 +1,20 @@
 # Interface e identidade visual
 
 Documentação da etapa 03 do ImobManager: sistema visual, componentes reutilizáveis,
-estrutura do frontend e critérios de responsividade e acessibilidade.
+estrutura do frontend e critérios de responsividade e acessibilidade. As seções afetadas
+pela etapa 04 foram atualizadas para refletir a autenticação real; os fluxos de segurança
+estão em [autenticacao.md](autenticacao.md).
 
 ## Objetivo da etapa
 
 Construir a interface visual completa do sistema, integrada apenas aos endpoints já
-existentes (nesta etapa, `/api/health`), sem simular autenticação ou autorização.
+existentes na etapa 03 (naquele momento, `/api/health`), sem simular autenticação ou
+autorização.
 
-> **Importante:** a tela de login é visual. O envio do formulário apenas valida os campos
-> no navegador e informa que a autenticação será implementada na etapa 04. O acesso às
-> telas internas é feito por `/app.html`, identificado como ambiente de pré-visualização.
-> Nenhuma regra de segurança é aplicada pela interface nesta fase.
+> **Atualização da etapa 04:** a tela de login passou a autenticar de verdade, a área
+> interna exige sessão válida e a interface consome `GET /api/auth/session`. A sessão de
+> pré-visualização, o banner e o chip de "Prévia" foram removidos. O detalhamento dos
+> fluxos de autenticação está em [autenticacao.md](autenticacao.md).
 
 ## Identidade visual
 
@@ -35,6 +38,7 @@ existentes (nesta etapa, `/api/health`), sem simular autenticação ou autoriza�
 public/
 ├── index.html              # tela de login
 ├── app.html                # shell da aplicação (SPA por hash)
+├── recuperar-senha.html    # solicitação e redefinição de senha
 ├── assets/
 │   └── favicon.svg         # marca IM em azul-marinho e dourado
 ├── css/
@@ -43,12 +47,13 @@ public/
 │   ├── components.css      # botões, formulários, tabelas, modais, toasts etc.
 │   └── pages.css           # dashboard, relatórios, administração e ajustes
 └── js/
-    ├── login.js            # validação visual do login e status dos serviços
+    ├── login.js            # login real, erros e status dos serviços
+    ├── recuperar-senha.js  # solicitação e redefinição de senha
     ├── app.js              # bootstrap da SPA e tabela de rotas
     ├── core/
-    │   ├── api.js          # fetch da API e tratamento de erros
+    │   ├── api.js          # fetch da API, erro padronizado e CSRF
     │   ├── router.js       # rotas por hash e verificação visual de permissão
-    │   ├── session.js      # sessão de pré-visualização (substituída na etapa 04)
+    │   ├── session.js      # sessão autenticada e permissões efetivas
     │   └── utils.js        # escape, iniciais, datas e uptime
     ├── components/
     │   ├── icons.js        # ícones SVG inline
@@ -79,23 +84,34 @@ de build: os arquivos são servidos diretamente pelo Express.
 ### Login (`/`)
 
 - Layout dividido: painel institucional azul-marinho e painel de acesso claro.
-- Formulário com validação nativa, alternância de visibilidade da senha e aviso de prévia.
-- Link "Acessar prévia do sistema" para `/app.html`.
+- Formulário com validação nativa, alternância de visibilidade da senha e erro genérico
+  para credenciais inválidas.
+- Login real via `POST /api/auth/login`, com redirecionamento para `/app.html` e aviso de
+  sessão expirada ou senha redefinida.
+- Link "Esqueci minha senha" para `/recuperar-senha.html`.
 - Indicador de serviços consulta `/api/health` em tempo real.
 - Em telas menores, o painel institucional vira uma faixa compacta com a marca.
+
+### Recuperação de senha (`/recuperar-senha.html`)
+
+- Fluxo de solicitação por e-mail com resposta sempre genérica.
+- Com `?token=` na URL, exibe o formulário de nova senha com confirmação e política
+  mínima de 12 caracteres.
+- Após o sucesso, informa que as sessões foram encerradas e leva ao login.
 
 ### Shell (`/app.html`)
 
 - Sidebar fixa com Dashboard, Imóveis, Corretores, Clientes, Atendimentos, Relatórios
   e Administração.
-- A opção Administração é exibida conforme a permissão `administracao.visualizar` da
-  sessão de prévia. Essa verificação é apenas visual; a autorização real será aplicada
-  no backend.
-- Cabeçalho com contexto da página, chip de prévia, identificação do usuário e avatar.
-- Banner permanente de "Ambiente de pré-visualização".
+- A opção Administração é exibida conforme a permissão `administracao.visualizar`
+  carregada na sessão autenticada. Essa verificação é visual; a autorização definitiva
+  é aplicada no backend.
+- Cabeçalho com contexto da página, identificação do usuário (nome e perfil) e avatar
+  com iniciais.
 - Em telas até 1024 px, a sidebar vira drawer com overlay, botão hambúrguer, fechamento
   por clique fora, tecla Escape ou seleção de um item.
-- Logout abre um modal de confirmação; na prévia, retorna à tela de login.
+- Logout abre um modal de confirmação, chama `POST /api/auth/logout` com CSRF e retorna
+  à tela de login.
 
 ### Dashboard (`#/dashboard`)
 
@@ -124,7 +140,7 @@ de build: os arquivos são servidos diretamente pelo Express.
 
 - Perfis Administrador e Corretor com listas de acesso.
 - Explicação da precedência: permissão individual → perfil → padrão do sistema.
-- Estado vazio para gestão de usuários (etapa 04).
+- Estado vazio para gestão de usuários (etapa 05).
 - Formulário visual de visibilidade de imóveis e clientes, com valores iniciais
   documentados. A gravação será conectada na etapa 05.
 
@@ -150,7 +166,7 @@ Validado com Firefox headless nas resoluções 1440×900 (desktop), 820×1180 (t
 - `1100 px`: dashboard e permissões em uma coluna; relatórios em duas; filtros em duas.
 - `1024 px`: sidebar em drawer; cabeçalho e conteúdo com menos padding.
 - `960 px`: login em coluna única com faixa de marca compacta.
-- `720 px`: chip de prévia e texto do usuário ocultos; banner de prévia quebra linha.
+- `720 px`: texto do usuário oculto no cabeçalho e conteúdo em coluna única.
 - `640 px`: indicadores, relatórios e filtros em uma coluna; formulários em uma coluna.
 - `560 px`: paddings reduzidos e contexto do cabeçalho simplificado.
 
@@ -166,17 +182,18 @@ Validado com Firefox headless nas resoluções 1440×900 (desktop), 820×1180 (t
 
 ## Integração com as próximas etapas
 
-- A sessão de prévia em `core/session.js` será substituída pela sessão autenticada
-  (etapa 04), preferencialmente consultando um endpoint como `GET /api/auth/me`.
-- A verificação visual de permissões no roteador continuará existindo para usabilidade;
-  a decisão final será sempre do backend (etapa 05).
+- A sessão autenticada é carregada por `core/session.js` em `GET /api/auth/session`, com
+  permissões efetivas e token CSRF mantido em memória.
+- A verificação visual de permissões no roteador continua existindo para usabilidade;
+  a decisão final é sempre do backend.
 - Os formulários e filtros já possuem estrutura para receber chamadas reais de API.
+- A gestão de usuários e permissões individuais será implementada na etapa 05.
 - Os indicadores do dashboard e os relatórios serão alimentados por dados reais
   (etapa 09).
 
 ## Validação executada
 
-- `npm test`: 12 testes aprovados, incluindo a nova suíte `tests/ui.test.js`.
+- `npm test`: 23 testes aprovados, incluindo `tests/ui.test.js` e `tests/auth.test.js`.
 - Serviços estáticos e módulos JavaScript retornando `200`.
 - Login, shell, dashboard, módulos, relatórios e administração verificados em três
   resoluções, incluindo abertura de modal, menu mobile, toasts e status real da API.

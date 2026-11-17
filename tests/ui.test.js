@@ -5,6 +5,8 @@ process.env.NODE_ENV = 'test';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { once } = require('node:events');
+const fs = require('node:fs/promises');
+const path = require('node:path');
 
 const createApp = require('../src/app');
 const { closePool } = require('../src/config/database');
@@ -36,27 +38,50 @@ test('tela de login é servida na raiz com a identidade visual', async () => {
   assert.match(html, /ImobManager/);
   assert.match(html, /\/css\/base\.css/);
   assert.match(html, /\/js\/login\.js/);
-  assert.match(html, /\/app\.html/);
-  assert.match(html, /Prévia da interface/);
+  assert.match(html, /\/recuperar-senha\.html/);
+  assert.match(html, /id="login-error"/);
   assert.equal(html.includes('/css/styles.css'), false);
+  assert.equal(html.includes('Prévia da interface'), false);
+  assert.equal(html.includes('Acessar prévia'), false);
 });
 
-test('shell da aplicação é servido com menu, banner de prévia e outlet SPA', async () => {
-  const response = await fetch(`${baseUrl}/app.html`);
-  const html = await response.text();
+test('área interna não é servida sem sessão autenticada', async () => {
+  const response = await fetch(`${baseUrl}/app.html`, { redirect: 'manual' });
 
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get('content-type'), /text\/html/);
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), '/');
+});
+
+test('shell autenticado mantém menu, outlet SPA e região de avisos', async () => {
+  const html = await fs.readFile(
+    path.join(__dirname, '..', 'public', 'app.html'),
+    'utf8'
+  );
+
   assert.match(html, /id="sidebar"/);
   assert.match(html, /id="view-outlet"/);
-  assert.match(html, /id="preview-banner"/);
   assert.match(html, /id="toast-region"/);
   assert.match(html, /data-page-label/);
   assert.match(html, /\/css\/pages\.css/);
   assert.match(html, /\/js\/app\.js/);
+  assert.equal(html.includes('preview-banner'), false);
+  assert.equal(html.includes('Ambiente de pré-visualização'), false);
 });
 
-test('folhas de estilo da etapa 03 são servidas como CSS', async () => {
+test('página de recuperação de senha é pública e possui os dois fluxos', async () => {
+  const response = await fetch(`${baseUrl}/recuperar-senha.html`);
+  const html = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /text\/html/);
+  assert.match(html, /Esqueceu sua senha/);
+  assert.match(html, /id="request-form"/);
+  assert.match(html, /id="reset-form"/);
+  assert.match(html, /\/js\/recuperar-senha\.js/);
+  assert.equal(html.includes('Prévia'), false);
+});
+
+test('folhas de estilo da interface são servidas como CSS', async () => {
   for (const file of ['base.css', 'layout.css', 'components.css', 'pages.css']) {
     const response = await fetch(`${baseUrl}/css/${file}`);
     const css = await response.text();
@@ -76,8 +101,10 @@ test('módulos JavaScript da interface são servidos', async () => {
   const modules = [
     '/js/app.js',
     '/js/login.js',
+    '/js/recuperar-senha.js',
     '/js/core/router.js',
     '/js/core/api.js',
+    '/js/core/session.js',
     '/js/components/shell.js',
     '/js/components/modal.js',
     '/js/components/toast.js',

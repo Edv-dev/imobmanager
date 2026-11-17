@@ -1,4 +1,7 @@
 const DEFAULT_ERROR_MESSAGE = 'Não foi possível concluir a solicitação.';
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+let csrfToken = null;
 
 export class ApiError extends Error {
   constructor(message, status, code) {
@@ -9,15 +12,26 @@ export class ApiError extends Error {
   }
 }
 
+export function definirCsrfToken(token) {
+  csrfToken = typeof token === 'string' && token ? token : null;
+}
+
+export function limparCsrfToken() {
+  csrfToken = null;
+}
+
 export async function request(path, options = {}) {
   const { method = 'GET', body, headers = {} } = options;
+  const methodUpper = method.toUpperCase();
+  const enviarCsrf = csrfToken && !SAFE_METHODS.has(methodUpper);
 
   const response = await fetch(path, {
-    method,
+    method: methodUpper,
     credentials: 'same-origin',
     headers: {
       Accept: 'application/json',
       ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(enviarCsrf ? { 'X-CSRF-Token': csrfToken } : {}),
       ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,

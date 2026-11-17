@@ -65,9 +65,9 @@ export default {
           <div class="notice notice--info">
             ${icon('shield', 18)}
             <p>
-              Módulo em pré-visualização. Usuários e sessões serão implementados na etapa 04;
-              permissões e configurações de visibilidade, na etapa 05. As preferências passam a
-              valer quando os módulos operacionais forem implementados.
+              A autenticação já está ativa. A gestão de usuários, as permissões individuais
+              e as configurações de visibilidade serão implementadas na etapa 05. As preferências
+              passam a valer quando os módulos operacionais forem implementados.
             </p>
           </div>
 
@@ -98,15 +98,15 @@ export default {
                 <h2>Usuários do sistema</h2>
                 <p class="card__subtitle">Contas vinculadas aos perfis Administrador e Corretor.</p>
               </div>
-              <span class="badge badge--warning">Etapa 04</span>
+              <span class="badge badge--warning">Etapa 05</span>
             </div>
             <div class="card__body">
               <div class="empty-state">
                 <span class="empty-state__icon">${icon('user-plus', 24)}</span>
-                <p class="empty-state__title">Gestão de usuários na etapa 04</p>
+                <p class="empty-state__title">Gestão de usuários na etapa 05</p>
                 <p class="empty-state__text">
-                  Criação de contas, redefinição de senha e vínculo de perfil serão implementados
-                  junto com a autenticação e a sessão do sistema.
+                  Criação de contas, alteração de perfis e permissões individuais serão
+                  implementadas na área administrativa na etapa 05.
                 </p>
               </div>
             </div>

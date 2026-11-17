@@ -1,6 +1,6 @@
 # Modelo de dados do ImobManager
 
-Etapa 02 — modelagem inicial do PostgreSQL.
+Etapas 02 e 04 — modelagem inicial e tabelas de autenticação no PostgreSQL.
 
 ## Diagrama ER
 
@@ -16,6 +16,8 @@ erDiagram
     USUARIOS ||--o{ IMOVEIS : "cadastra"
     USUARIOS ||--o{ CONFIGURACOES : "atualiza"
     USUARIOS ||--o{ AUDITORIA : "gera evento"
+    USUARIOS ||--o{ SESSOES : "possui sessao"
+    USUARIOS ||--o{ RECUPERACOES_SENHA : "solicita recuperacao"
     CORRETORES ||--o{ IMOVEIS_CORRETORES : "responsavel"
     IMOVEIS ||--o{ IMOVEIS_CORRETORES : "possui corretor"
     IMOVEIS ||--o{ IMAGENS_IMOVEIS : "possui imagem"
@@ -122,6 +124,27 @@ erDiagram
       text resultado
       timestamptz data_hora
     }
+    SESSOES {
+      bigint id PK
+      bigint usuario_id FK
+      text token_hash UK
+      timestamptz criado_em
+      timestamptz ultimo_acesso_em
+      timestamptz expira_em
+      timestamptz revogado_em
+      text revogado_motivo
+      inet ip
+      text user_agent
+    }
+    RECUPERACOES_SENHA {
+      bigint id PK
+      bigint usuario_id FK
+      text token_hash UK
+      timestamptz criado_em
+      timestamptz expira_em
+      timestamptz usado_em
+      inet ip
+    }
 ```
 
 ## Tabelas
@@ -142,6 +165,8 @@ erDiagram
 | `atendimentos`       | Histórico de atendimentos, com cliente, corretor e imóvel opcional.        |
 | `configuracoes`      | Configurações chave/valor em JSONB.                                        |
 | `auditoria`          | Eventos de segurança e operação, sem dados sensíveis desnecessários.       |
+| `sessoes`            | Sessões autenticadas; armazena apenas o hash do token.                     |
+| `recuperacoes_senha` | Tokens de recuperação de senha com uso único e validade curta.             |
 
 ## Relacionamentos principais
 
@@ -151,6 +176,8 @@ erDiagram
 - Clientes e imóveis podem ser vinculados a vários corretores; o campo `principal` define o responsável e é único por registro (índice parcial).
 - Um atendimento referencia obrigatoriamente um cliente e um corretor, e opcionalmente um imóvel.
 - A auditoria preserva o `usuario_id` quando possível e também o e-mail no momento do evento.
+- Um usuário pode ter várias sessões e várias solicitações de recuperação; ambas são
+  removidas em cascata se o usuário for excluído fisicamente.
 
 ## Permissões: precedência
 
@@ -173,6 +200,22 @@ Configurada em `configuracoes`:
 - `vinculados`: o corretor visualiza apenas registros ligados a ele nas tabelas de vínculo.
 - As duas chaves são independentes e podem ser combinadas pelo administrador.
 - Exceções individuais para recursos específicos de outros corretores serão implementadas na etapa 05, com precedência sobre a regra geral de visibilidade.
+
+## Sessões e recuperação de senha
+
+Adicionadas pela migration `002_auth_sessions`:
+
+- `sessoes.token_hash` e `recuperacoes_senha.token_hash` são únicos e validados como 64
+  caracteres hexadecimais; o token utilizável nunca é armazenado.
+- `expira_em > criado_em` é garantido por `CHECK` nas duas tabelas.
+- A revogação de sessão exige `revogado_em` e `revogado_motivo` preenchidos em conjunto.
+- Tokens de recuperação são de uso único (`usado_em`); uma nova solicitação consome os
+  pendentes anteriores.
+- Redefinir a senha atualiza `senha_alterada_em`, limpa bloqueio e tentativas e revoga
+  todas as sessões abertas do usuário.
+- Índices cobrem usuário, expiração e registros ainda ativos (`WHERE revogado_em IS NULL`
+  e `WHERE usado_em IS NULL`).
+- Exclusão física do usuário remove sessões e recuperações em cascata.
 
 ## Exclusão lógica
 

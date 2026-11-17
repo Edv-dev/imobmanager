@@ -1,4 +1,4 @@
-import { getHealth } from './core/api.js';
+import { getHealth, request } from './core/api.js';
 import { icon } from './components/icons.js';
 import { showToast } from './components/toast.js';
 
@@ -9,6 +9,27 @@ document.querySelectorAll('[data-icon]').forEach((element) => {
 const form = document.getElementById('login-form');
 const passwordInput = document.getElementById('login-password');
 const togglePassword = document.querySelector('[data-toggle-password]');
+const errorBox = document.getElementById('login-error');
+const submitButton = form.querySelector('button[type="submit"]');
+const submitLabel = submitButton.innerHTML;
+
+function mostrarErro(mensagem) {
+  errorBox.textContent = mensagem;
+  errorBox.hidden = false;
+}
+
+function limparErro() {
+  errorBox.textContent = '';
+  errorBox.hidden = true;
+}
+
+function definirCarregando(carregando) {
+  submitButton.disabled = carregando;
+  submitButton.setAttribute('aria-busy', String(carregando));
+  submitButton.innerHTML = carregando
+    ? 'Verificando acesso...'
+    : submitLabel;
+}
 
 togglePassword.addEventListener('click', () => {
   const showing = passwordInput.type === 'text';
@@ -21,29 +42,63 @@ togglePassword.addEventListener('click', () => {
   togglePassword.innerHTML = icon(showing ? 'eye' : 'eye-off', 17);
 });
 
-form.addEventListener('submit', (event) => {
+form.addEventListener('input', limparErro);
+
+form.addEventListener('submit', async (event) => {
   event.preventDefault();
+  limparErro();
 
   if (!form.reportValidity()) return;
 
-  showToast({
-    type: 'info',
-    title: 'Login em pré-visualização',
-    message:
-      'A autenticação será implementada na etapa 04. Para explorar as telas, use o link "Acessar prévia do sistema".',
-    timeout: 7000,
-  });
+  const email = document.getElementById('login-email').value.trim();
+  const password = passwordInput.value;
+  const lembrar = document.getElementById('login-remember').checked;
+
+  definirCarregando(true);
+
+  try {
+    await request('/api/auth/login', {
+      method: 'POST',
+      body: { email, password, lembrar },
+    });
+
+    window.location.assign('/app.html');
+  } catch (error) {
+    const mensagem =
+      error.status === 0
+        ? 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.'
+        : error.message;
+
+    mostrarErro(mensagem || 'Não foi possível entrar. Verifique os dados e tente novamente.');
+    passwordInput.focus();
+    passwordInput.select();
+    definirCarregando(false);
+  }
 });
 
-document.querySelector('[data-action="forgot-password"]').addEventListener('click', (event) => {
-  event.preventDefault();
+const parametros = new URLSearchParams(window.location.search);
+
+if (parametros.get('sessao') === 'expirada') {
   showToast({
-    type: 'info',
-    title: 'Recuperação de senha',
-    message:
-      'A recuperação de senha será disponibilizada junto com a autenticação, na etapa 04.',
+    type: 'warning',
+    title: 'Sessão encerrada',
+    message: 'Sua sessão expirou. Entre novamente para continuar.',
+    timeout: 7000,
   });
-});
+}
+
+if (parametros.get('senha') === 'redefinida') {
+  showToast({
+    type: 'success',
+    title: 'Senha redefinida',
+    message: 'Entre com sua nova senha para acessar o sistema.',
+    timeout: 7000,
+  });
+}
+
+if (parametros.has('sessao') || parametros.has('senha')) {
+  window.history.replaceState({}, '', window.location.pathname);
+}
 
 async function updateServiceStatus() {
   const container = document.getElementById('login-status');
