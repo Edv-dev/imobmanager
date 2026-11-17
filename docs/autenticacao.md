@@ -170,7 +170,8 @@ Exemplos:
 
 Códigos previstos: `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `UNAUTHENTICATED`,
 `FORBIDDEN`, `CSRF_INVALID`, `ORIGIN_INVALID`, `RATE_LIMITED`, `VALIDATION_ERROR`,
-`WEAK_PASSWORD`, `INVALID_RESET_TOKEN`, `INVALID_JSON` e `PAYLOAD_TOO_LARGE`.
+`WEAK_PASSWORD`, `INVALID_RESET_TOKEN`, `ADMIN_REQUIRED`, `LAST_ADMIN`, `SELF_OPERATION`,
+`INVALID_JSON` e `PAYLOAD_TOO_LARGE`.
 
 ## Segurança aplicada
 
@@ -280,20 +281,20 @@ Em produção, a aplicação recusa `SESSION_SECRET` ausente ou com menos de 32 
 
 ## Testes e validação
 
-- `npm test`: 23 testes aprovados, incluindo `tests/auth.test.js`.
+- `npm test`: 32 testes aprovados, incluindo `tests/auth.test.js` e `tests/admin.test.js`.
 - `tests/auth.test.js` cobre: proteção de páginas, credenciais inválidas, login válido,
   cookie e expiração, CSRF no logout, origem inválida, bloqueio após tentativas,
   recuperação com token de uso único, revogação de sessões, política de senha,
   cabeçalhos de segurança e middlewares de autorização.
-- `npm run migrate:status`: migrations 001 e 002 aplicadas.
-- `npm run db:check`: 24 verificações de integridade aprovadas, com rollback ao final.
+- `npm run migrate:status`: migrations 001, 002 e 003 aplicadas.
+- `npm run db:check`: 25 verificações de integridade aprovadas, com rollback ao final.
 
 ## Limitações e próximos passos
 
 - O rate limiting usa memória do processo; para múltiplas instâncias, migrar para um
   armazenamento compartilhado (por exemplo, Redis).
 - A recuperação de senha depende de SMTP configurado em produção.
-- Não há, nesta etapa, tela de troca de senha para usuário autenticado, gestão de usuários
-  ou encerramento remoto de sessões; esses itens entram na etapa 05.
+- A administração permite redefinir a senha de terceiros e encerrar suas sessões; a troca
+  de senha pelo próprio usuário autenticado continua usando o fluxo de recuperação.
 - `trust proxy` permanece desabilitado; ao publicar atrás de proxy reverso, configurar
   corretamente para que IP e `Secure` sejam confiáveis.

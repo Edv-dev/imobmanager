@@ -2,7 +2,7 @@
 
 Sistema web de gestão para uma única imobiliária, com arquitetura cliente-servidor e API REST.
 
-**Etapa atual: 04 — Autenticação e segurança.**
+**Etapa atual: 05 — Administração e permissões.**
 
 ## Visão geral
 
@@ -12,8 +12,10 @@ Sistema web de gestão para uma única imobiliária, com arquitetura cliente-ser
 - Comunicação: JSON sobre HTTP (HTTPS em produção).
 - Autenticação real por e-mail e senha, sessões no servidor, recuperação de senha e
   auditoria dos eventos de acesso.
+- Área administrativa funcional: usuários, corretores vinculados, perfis e permissões,
+  exceções individuais, visibilidade de imóveis/clientes e histórico de auditoria.
 - Telas de negócio não exibem dados fictícios; usam estados vazios até a persistência
-  real ser conectada nas etapas 05 a 09, conforme o roteiro.
+  real ser conectada nas etapas 06 a 09, conforme o roteiro.
 
 ## Arquitetura
 
@@ -55,6 +57,7 @@ imobManager/
 ├── package.json          # metadados e scripts do projeto
 ├── README.md
 ├── docs/
+│   ├── administracao.md  # usuários, permissões, visibilidade e auditoria
 │   ├── autenticacao.md   # fluxos, endpoints, sessões e decisões de segurança
 │   ├── banco-de-dados.md # diagrama ER, relacionamentos e regras de dados
 │   └── interface.md      # design system, telas, componentes e responsividade
@@ -62,7 +65,9 @@ imobManager/
 │   ├── 001_initial_schema.up.sql       # schema de negócio e seeds
 │   ├── 001_initial_schema.down.sql
 │   ├── 002_auth_sessions.up.sql        # sessões e recuperação de senha
-│   └── 002_auth_sessions.down.sql
+│   ├── 002_auth_sessions.down.sql
+│   ├── 003_resource_access.up.sql      # exceções individuais por registro
+│   └── 003_resource_access.down.sql
 ├── scripts/
 │   ├── create-admin.js   # administrador inicial interativo (npm run admin:create)
 │   ├── db-ping.js        # verifica a conexão com o PostgreSQL
@@ -76,19 +81,32 @@ imobManager/
 │   │   ├── env.js        # carregamento e validação das variáveis de ambiente
 │   │   └── database.js   # pool de conexões e verificação de saúde do banco
 │   ├── controllers/
+│   │   ├── admin.controller.js
 │   │   ├── auth.controller.js
 │   │   └── health.controller.js
 │   ├── services/
+│   │   ├── acesso.service.js        # visibilidade e exceções por registro
+│   │   ├── admin-audit.service.js
+│   │   ├── admin-permissoes.service.js
+│   │   ├── admin-usuarios.service.js
+│   │   ├── auditoria.service.js
 │   │   ├── auth.service.js
+│   │   ├── configuracoes.service.js
 │   │   ├── email.service.js
 │   │   └── health.service.js
 │   ├── models/
+│   │   ├── acesso.model.js
 │   │   ├── auditoria.model.js
+│   │   ├── configuracao.model.js
+│   │   ├── corretor.model.js
+│   │   ├── perfil.model.js
+│   │   ├── permissao.model.js
 │   │   ├── recuperacao.model.js
 │   │   ├── sessao.model.js
 │   │   └── usuario.model.js
 │   ├── routes/
 │   │   ├── index.js      # agrega as rotas em /api
+│   │   ├── admin.routes.js
 │   │   ├── auth.routes.js
 │   │   └── health.routes.js
 │   ├── middlewares/
@@ -98,6 +116,7 @@ imobManager/
 │   │   ├── notFound.js
 │   │   └── errorHandler.js
 │   └── utils/
+│       ├── authorization.js # guardas de perfil e autoalteração
 │       ├── http-error.js
 │       ├── password.js   # bcrypt com custo 12
 │       ├── tokens.js     # tokens aleatórios, hash e CSRF
@@ -120,10 +139,11 @@ imobManager/
 │       ├── components/   # icons, shell, tabela, formulário, modal, toast etc.
 │       └── views/        # dashboard, imóveis, corretores, clientes e demais telas
 └── tests/
+    ├── admin.test.js     # usuários, permissões, visibilidade e auditoria
     ├── api.test.js       # healthcheck, 404, JSON inválido e estáticos
     ├── auth.test.js      # login, sessão, CSRF, bloqueio, recuperação e headers
     ├── database.test.js  # indisponibilidade do banco
-    └── ui.test.js        # login, área protegida, recuperação, CSS e módulos JS
+    └── ui.test.js        # login, área protegida, administração, CSS e módulos JS
 ```
 
 ## Requisitos
@@ -294,15 +314,19 @@ Acesse:
   `#/atendimentos`, `#/relatorios` e `#/administracao`.
 - A navegação respeita as permissões retornadas pelo servidor, mas a autorização
   definitiva é sempre aplicada no backend.
+- Administração (`#/administracao`) opera com dados reais: criação e edição de usuários,
+  cadastro de corretor vinculado, ativação/desativação, redefinição de senha, permissões
+  individuais, perfis, exceções por imóvel/cliente e consulta à auditoria.
 - Dashboard consulta o healthcheck real e exibe banco, API, uptime e ambiente.
 - Indicadores e tabelas não exibem dados fictícios; usam estado vazio com a etapa em que
   cada informação será alimentada.
-- Formulários de negócio, filtros e ações informativas continuam sem persistência até as
-  etapas correspondentes.
+- Formulários dos módulos operacionais, filtros e ações informativas continuam sem
+  persistência até as etapas 06 a 09.
 - Layout responsivo validado em desktop e celular.
 
 Detalhes do design system e das telas: [docs/interface.md](docs/interface.md).
 Fluxos e decisões de segurança: [docs/autenticacao.md](docs/autenticacao.md).
+Regras administrativas: [docs/administracao.md](docs/administracao.md).
 
 ### API de autenticação
 
@@ -316,6 +340,33 @@ Fluxos e decisões de segurança: [docs/autenticacao.md](docs/autenticacao.md).
 
 Todas as respostas de autenticação usam `Cache-Control: no-store`. Operações autenticadas
 que alteram estado exigem o cabeçalho `X-CSRF-Token`, obtido em `GET /api/auth/session`.
+
+### API administrativa
+
+Todas as rotas exigem sessão, perfil administrativo (`perfis.administrativo = true`),
+CSRF nas mutações e a permissão indicada.
+
+| Método | Rota                                             | Permissão                |
+| ------ | ------------------------------------------------ | ------------------------ |
+| GET    | `/api/administracao/resumo`                      | `administracao.visualizar` |
+| GET    | `/api/administracao/usuarios`                    | `usuarios.gerenciar`     |
+| POST   | `/api/administracao/usuarios`                    | `usuarios.gerenciar`     |
+| GET    | `/api/administracao/usuarios/:id`                | `usuarios.gerenciar`     |
+| PATCH  | `/api/administracao/usuarios/:id`                | `usuarios.gerenciar`     |
+| PATCH  | `/api/administracao/usuarios/:id/status`         | `usuarios.gerenciar`     |
+| POST   | `/api/administracao/usuarios/:id/redefinir-senha`| `usuarios.gerenciar`     |
+| GET    | `/api/administracao/usuarios/opcoes`             | usuários, permissões ou configurações |
+| GET    | `/api/administracao/perfis/opcoes`               | `usuarios.gerenciar`     |
+| GET    | `/api/administracao/usuarios/:id/permissoes`     | `permissoes.gerenciar`   |
+| PUT    | `/api/administracao/usuarios/:id/permissoes`     | `permissoes.gerenciar`   |
+| GET    | `/api/administracao/usuarios/:id/acessos`        | `permissoes.gerenciar`   |
+| PUT    | `/api/administracao/usuarios/:id/acessos`        | `permissoes.gerenciar`   |
+| GET    | `/api/administracao/perfis`                      | `permissoes.gerenciar`   |
+| PUT    | `/api/administracao/perfis/:id/permissoes`       | `permissoes.gerenciar`   |
+| GET    | `/api/administracao/recursos`                    | `permissoes.gerenciar`   |
+| GET    | `/api/administracao/configuracoes`               | `configuracoes.gerenciar`|
+| PUT    | `/api/administracao/configuracoes/visibilidade`  | `configuracoes.gerenciar`|
+| GET    | `/api/administracao/auditoria`                   | `auditoria.visualizar`   |
 
 ### Healthcheck
 
@@ -348,10 +399,13 @@ npm run db:check  # testes de integridade do schema (rollback ao final)
 Os testes usam o test runner nativo do Node.js (`node --test`). A suíte `tests/auth.test.js`
 cria usuários temporários no banco configurado, valida login, sessão, CSRF, origem,
 bloqueio, recuperação, revogação e cabeçalhos de segurança, e remove os dados ao final.
-A suíte `tests/ui.test.js` verifica login, proteção de `/app.html`, recuperação, folhas de
-estilo, módulos JavaScript e favicon. O `db:check` valida tabelas, FKs, índices, seeds e
-regras de unicidade, exclusão lógica e cascata; todos os dados de teste são revertidos
-por rollback.
+A suíte `tests/admin.test.js` valida permissões, CSRF, CRUD de usuários e corretores,
+status, redefinição de senha, exceções individuais, visibilidade, isolamento entre
+corretores e auditoria, restaurando o estado do banco. A suíte `tests/ui.test.js` verifica
+login, proteção de `/app.html`, recuperação, área administrativa, folhas de estilo,
+módulos JavaScript e favicon. O `db:check` valida as 18 tabelas, FKs, índices, seeds,
+triggers e regras de unicidade, exclusão lógica e cascata; todos os dados de teste são
+revertidos por rollback.
 
 ## Segurança aplicada
 
@@ -372,15 +426,20 @@ por rollback.
   genérica e revogação de todas as sessões após a troca.
 - Autorização no servidor por permissões carregadas do banco, incluindo exceções
   individuais sobre o perfil.
-- Auditoria de login, falhas, bloqueio, logout, solicitação de recuperação e redefinição,
-  sem registrar senhas ou tokens.
+- Rotas administrativas exigem perfil administrativo e permissão específica; mutações
+  também exigem CSRF. Autoalteração de permissões/acessos, autodesativação e remoção do
+  último administrador ativo são bloqueadas.
+- Permissões do módulo Administração não podem ser concedidas a perfis ou usuários não
+  administrativos; o perfil Administrador mantém as permissões essenciais.
+- Auditoria de login, falhas, bloqueio, logout, solicitação de recuperação, redefinição e
+  ações administrativas, sem registrar senhas ou tokens.
 - Limite de tamanho para corpos JSON e formulários (`1mb`).
 - Erros padronizados, sem stack trace em produção e sem detalhes internos.
 - Consultas parametrizadas via `pg`.
 
 Limitações atuais: o rate limiting usa memória do processo (adequado a uma instância) e
-o envio de e-mail exige SMTP configurado. A gestão de usuários, permissões individuais e
-configurações administrativas será implementada na etapa 05.
+o envio de e-mail exige SMTP configurado. A troca de senha pelo próprio usuário segue o
+fluxo de recuperação; a administração redefine senhas de terceiros.
 
 ## Versionamento
 
@@ -393,7 +452,7 @@ A versão do `package.json` acompanha as versões definidas no roteiro (`0.1.0` 
 - [x] 02 — Modelagem do banco de dados
 - [x] 03 — Identidade visual e interface
 - [x] 04 — Autenticação e segurança
-- [ ] 05 — Administração e permissões
+- [x] 05 — Administração e permissões
 - [ ] 06 — Gestão de corretores
 - [ ] 07 — Gestão de imóveis
 - [ ] 08 — Gestão de clientes
@@ -407,6 +466,10 @@ A versão do `package.json` acompanha as versões definidas no roteiro (`0.1.0` 
 - **`Banco de dados inacessível`:** confirme se o PostgreSQL está ativo, se o banco/usuário existem e se a senha no `.env` está correta.
 - **Login não autentica:** confirme se as migrations foram aplicadas e se existe um
   administrador criado com `npm run admin:create`. Não há credenciais padrão.
+- **Erro `LAST_ADMIN`:** mantenha ao menos um administrador ativo; reative ou crie outro
+  antes de desativar o atual.
+- **Acessos inesperados a imóveis/clientes:** revise a regra em `#/administracao` na aba
+  Visibilidade e as exceções individuais do usuário; negações prevalecem.
 - **Não recebi o e-mail de recuperação:** em desenvolvimento, consulte o link no console
   do servidor; em produção, configure `SMTP_HOST` e `SMTP_FROM`.
 - **Sessão expirou:** entre novamente; a duração é configurável por `SESSION_TTL_MINUTES`.

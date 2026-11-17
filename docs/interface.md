@@ -138,11 +138,20 @@ de build: os arquivos são servidos diretamente pelo Express.
 
 ### Administração (`#/administracao`)
 
-- Perfis Administrador e Corretor com listas de acesso.
-- Explicação da precedência: permissão individual → perfil → padrão do sistema.
-- Estado vazio para gestão de usuários (etapa 05).
-- Formulário visual de visibilidade de imóveis e clientes, com valores iniciais
-  documentados. A gravação será conectada na etapa 05.
+- Abas Visão geral, Usuários, Perfis e permissões, Visibilidade e Histórico, exibidas
+  conforme as permissões efetivas do usuário.
+- Visão geral com contagens reais de contas, administradores, corretores e sessões.
+- Usuários: busca, filtros por perfil/status, paginação, criação e edição de conta,
+  cadastro de corretor vinculado, ativação/desativação e redefinição de senha.
+- Permissões individuais com opções Herdar, Permitir e Negar e indicação do que é
+  herdado do perfil; regras essenciais e módulo administrativo são protegidos.
+- Perfis: cartões com permissões por módulo e editor completo do catálogo.
+- Visibilidade: regra geral para imóveis e clientes e exceções por registro, com filtro
+  local, indicação de vínculo e precedência da negação.
+- Histórico: consulta paginada da auditoria com busca, tipo de evento, resultado e
+  detalhes em JSON.
+- Formulários usam modais, validação nativa e mensagens de erro do servidor sem perder
+  os dados digitados.
 
 ## Componentes
 
@@ -186,14 +195,17 @@ Validado com Firefox headless nas resoluções 1440×900 (desktop), 820×1180 (t
   permissões efetivas e token CSRF mantido em memória.
 - A verificação visual de permissões no roteador continua existindo para usabilidade;
   a decisão final é sempre do backend.
-- Os formulários e filtros já possuem estrutura para receber chamadas reais de API.
-- A gestão de usuários e permissões individuais será implementada na etapa 05.
-- Os indicadores do dashboard e os relatórios serão alimentados por dados reais
-  (etapa 09).
+- A área administrativa já opera com a API real; os módulos operacionais e os relatórios
+  recebem persistência nas etapas 06 a 09.
+- A matriz de permissões e as exceções por registro são carregadas do backend e aplicadas
+  no roteador apenas para usabilidade; o servidor mantém a decisão final.
 
 ## Validação executada
 
-- `npm test`: 23 testes aprovados, incluindo `tests/ui.test.js` e `tests/auth.test.js`.
+- `npm test`: 32 testes aprovados, incluindo `tests/ui.test.js`, `tests/auth.test.js` e
+  `tests/admin.test.js`.
 - Serviços estáticos e módulos JavaScript retornando `200`.
 - Login, shell, dashboard, módulos, relatórios e administração verificados em três
   resoluções, incluindo abertura de modal, menu mobile, toasts e status real da API.
+- A tela administrativa é verificada por teste de interface quanto ao uso da API real e
+  à presença das áreas de usuários, permissões, visibilidade e histórico.

@@ -127,6 +127,28 @@ test('módulos JavaScript da interface são servidos', async () => {
   }
 });
 
+test('tela administrativa utiliza a API real e oferece as quatro áreas de gestão', async () => {
+  const response = await fetch(`${baseUrl}/js/views/administracao.js`);
+  const script = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(script, /\/api\/administracao\/resumo/);
+  assert.match(script, /\/api\/administracao\/usuarios/);
+  assert.match(script, /\/api\/administracao\/perfis/);
+  assert.match(script, /\/api\/administracao\/configuracoes\/visibilidade/);
+  assert.match(script, /\/api\/administracao\/auditoria/);
+  assert.match(script, /admin-permissoes-usuario/);
+  assert.match(script, /admin-acessos-usuario/);
+  assert.match(script, /data-admin-visibilidade/);
+  assert.match(script, /Histórico/);
+  assert.equal(script.includes('serão implementadas na etapa 05'), false);
+
+  const css = await (await fetch(`${baseUrl}/css/pages.css`)).text();
+  assert.match(css, /\.permission-row/);
+  assert.match(css, /\.access-row/);
+  assert.match(css, /\.admin-loading/);
+});
+
 test('favicon da identidade visual é servido como SVG', async () => {
   const response = await fetch(`${baseUrl}/assets/favicon.svg`);
   const svg = await response.text();

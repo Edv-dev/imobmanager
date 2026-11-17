@@ -75,10 +75,21 @@ async function revogarTodasDoUsuario(usuarioId, motivo) {
   return rows.length;
 }
 
+async function contarAtivas() {
+  const { rows } = await query(
+    `SELECT count(*)::int AS total
+       FROM sessoes
+      WHERE revogado_em IS NULL
+        AND expira_em > now()`
+  );
+  return rows[0].total;
+}
+
 module.exports = {
   criar,
   buscarValidaPorHash,
   registrarAcesso,
   revogarPorHash,
   revogarTodasDoUsuario,
+  contarAtivas,
 };

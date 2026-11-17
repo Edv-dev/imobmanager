@@ -1,6 +1,6 @@
 # Modelo de dados do ImobManager
 
-Etapas 02 e 04 — modelagem inicial e tabelas de autenticação no PostgreSQL.
+Etapas 02, 04 e 05 — modelagem inicial, autenticação e exceções individuais de acesso no PostgreSQL.
 
 ## Diagrama ER
 
@@ -11,6 +11,10 @@ erDiagram
     PERMISSOES ||--o{ PERFIS_PERMISSOES : "concedida ao perfil"
     USUARIOS ||--o{ PERMISSOES_USUARIOS : "recebe excecao"
     PERMISSOES ||--o{ PERMISSOES_USUARIOS : "referencia"
+    USUARIOS ||--o{ ACESSOS_IMOVEIS : "recebe excecao"
+    IMOVEIS ||--o{ ACESSOS_IMOVEIS : "referencia"
+    USUARIOS ||--o{ ACESSOS_CLIENTES : "recebe excecao"
+    CLIENTES ||--o{ ACESSOS_CLIENTES : "referencia"
     USUARIOS ||--o| CORRETORES : "vincula-se a"
     USUARIOS ||--o{ CLIENTES : "cadastra"
     USUARIOS ||--o{ IMOVEIS : "cadastra"
@@ -52,6 +56,20 @@ erDiagram
     PERMISSOES_USUARIOS {
       bigint usuario_id PK, FK
       bigint permissao_id PK, FK
+      boolean permitido
+      bigint concedido_por_usuario_id FK
+    }
+    ACESSOS_IMOVEIS {
+      bigint id PK
+      bigint usuario_id FK
+      bigint imovel_id FK
+      boolean permitido
+      bigint concedido_por_usuario_id FK
+    }
+    ACESSOS_CLIENTES {
+      bigint id PK
+      bigint usuario_id FK
+      bigint cliente_id FK
       boolean permitido
       bigint concedido_por_usuario_id FK
     }
@@ -167,6 +185,8 @@ erDiagram
 | `auditoria`          | Eventos de segurança e operação, sem dados sensíveis desnecessários.       |
 | `sessoes`            | Sessões autenticadas; armazena apenas o hash do token.                     |
 | `recuperacoes_senha` | Tokens de recuperação de senha com uso único e validade curta.             |
+| `acessos_imoveis`    | Exceções individuais de acesso a imóveis (permitir/negar).                 |
+| `acessos_clientes`   | Exceções individuais de acesso a clientes (permitir/negar).                |
 
 ## Relacionamentos principais
 
@@ -178,6 +198,8 @@ erDiagram
 - A auditoria preserva o `usuario_id` quando possível e também o e-mail no momento do evento.
 - Um usuário pode ter várias sessões e várias solicitações de recuperação; ambas são
   removidas em cascata se o usuário for excluído fisicamente.
+- Exceções por registro são únicas por usuário e imóvel/cliente e removidas em cascata
+  com o usuário ou com o registro referenciado.
 
 ## Permissões: precedência
 
@@ -185,7 +207,10 @@ erDiagram
 2. **Permissão geral** em `perfis_permissoes`: aplicada quando não há exceção individual.
 3. **Negação por padrão**: sem permissão no perfil e sem exceção, o acesso é negado.
 
-As duas origens ficam em tabelas separadas por exigência do projeto. O backend deve consultar a exceção individual antes da permissão do perfil (etapa 05). Todo acesso a permissões administrativas continuará sendo validado no servidor.
+As duas origens ficam em tabelas separadas por exigência do projeto. O backend consulta a
+exceção individual antes da permissão do perfil, conforme implementado em
+`src/services/admin-permissoes.service.js`, e valida as permissões essenciais e o módulo
+administrativo no servidor.
 
 ## Visibilidade de imóveis e clientes
 
@@ -199,7 +224,9 @@ Configurada em `configuracoes`:
 - `todos`: o corretor visualiza todos os registros.
 - `vinculados`: o corretor visualiza apenas registros ligados a ele nas tabelas de vínculo.
 - As duas chaves são independentes e podem ser combinadas pelo administrador.
-- Exceções individuais para recursos específicos de outros corretores serão implementadas na etapa 05, com precedência sobre a regra geral de visibilidade.
+- Exceções individuais em `acessos_imoveis` e `acessos_clientes` têm precedência sobre a
+  regra geral: `permitido = true` concede e `permitido = false` nega, com a negação
+  prevalecendo sobre vínculos e concessões. Administradores mantêm acesso total.
 
 ## Sessões e recuperação de senha
 
@@ -216,6 +243,19 @@ Adicionadas pela migration `002_auth_sessions`:
 - Índices cobrem usuário, expiração e registros ainda ativos (`WHERE revogado_em IS NULL`
   e `WHERE usado_em IS NULL`).
 - Exclusão física do usuário remove sessões e recuperações em cascata.
+
+## Exceções de acesso por registro
+
+Adicionadas pela migration `003_resource_access`:
+
+- `acessos_imoveis` e `acessos_clientes` guardam `permitido`, o usuário responsável pela
+  concessão e timestamps de criação/atualização.
+- `UNIQUE (usuario_id, imovel_id)` e `UNIQUE (usuario_id, cliente_id)` impedem exceções
+  duplicadas para o mesmo par.
+- FKs removem as exceções em cascata quando o usuário, o imóvel ou o cliente é excluído
+  fisicamente; o autor da concessão usa `ON DELETE SET NULL`.
+- Índices cobrem usuário, registro e autor da concessão.
+- Triggers mantêm `atualizado_em` nas duas tabelas.
 
 ## Exclusão lógica
 

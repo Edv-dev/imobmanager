@@ -3,6 +3,8 @@
 const { pool } = require('../src/config/database');
 
 const EXPECTED_TABLES = [
+  'acessos_clientes',
+  'acessos_imoveis',
   'auditoria',
   'atendimentos',
   'clientes',
@@ -44,6 +46,12 @@ const EXPECTED_FKS = [
   'fk_auditoria_usuario',
   'fk_sessoes_usuario',
   'fk_recuperacoes_senha_usuario',
+  'fk_acessos_imoveis_usuario',
+  'fk_acessos_imoveis_imovel',
+  'fk_acessos_imoveis_concedido_por',
+  'fk_acessos_clientes_usuario',
+  'fk_acessos_clientes_cliente',
+  'fk_acessos_clientes_concedido_por',
 ];
 
 const EXPECTED_UNIQUE_INDEXES = [
@@ -57,9 +65,13 @@ const EXPECTED_UNIQUE_INDEXES = [
   'uq_imagens_imoveis_principal',
   'uq_imoveis_corretores_principal',
   'uq_clientes_corretores_principal',
+  'uq_acessos_imoveis_usuario_imovel',
+  'uq_acessos_clientes_usuario_cliente',
 ];
 
 const EXPECTED_UPDATED_AT_TRIGGERS = [
+  'trg_acessos_clientes_atualizado_em',
+  'trg_acessos_imoveis_atualizado_em',
   'trg_atendimentos_atualizado_em',
   'trg_clientes_atualizado_em',
   'trg_configuracoes_atualizado_em',
@@ -138,7 +150,7 @@ async function main() {
     const existingTables = new Set(tables.map((row) => row.table_name));
     const missingTables = EXPECTED_TABLES.filter((table) => !existingTables.has(table));
 
-    await check('Todas as 16 tabelas existem no schema public', async () => {
+    await check('Todas as 18 tabelas existem no schema public', async () => {
       if (missingTables.length > 0) {
         throw new Error(`Tabelas ausentes: ${missingTables.join(', ')}. Execute npm run migrate:up.`);
       }
@@ -372,6 +384,22 @@ async function main() {
       [adminUser.id, TEST_EMAILS[0], String(adminUser.id)]
     );
 
+    await client.query(
+      `INSERT INTO acessos_imoveis (usuario_id, imovel_id, permitido, concedido_por_usuario_id)
+       VALUES ($1, $2, true, $3)`,
+      [corretorUser.id, imovel.id, adminUser.id]
+    );
+
+    await check('Excecao de acesso a imovel e unica por usuario e registro', async () => {
+      await expectDbError(client, {
+        sql: `INSERT INTO acessos_imoveis (usuario_id, imovel_id, permitido)
+              VALUES ($1, $2, false)`,
+        params: [corretorUser.id, imovel.id],
+        code: '23505',
+        constraint: 'uq_acessos_imoveis_usuario_imovel',
+      });
+    });
+
     await check('Permissao individual coexiste com a permissao geral do perfil', async () => {
       await client.query(
         `INSERT INTO permissoes_usuarios (usuario_id, permissao_id, permitido, concedido_por_usuario_id)
@@ -554,6 +582,11 @@ async function main() {
         `SELECT count(*)::int AS total FROM imoveis_corretores WHERE imovel_id = $1`,
         [imovel.id]
       );
+      const acessos = await fetchOne(
+        client,
+        `SELECT count(*)::int AS total FROM acessos_imoveis WHERE imovel_id = $1`,
+        [imovel.id]
+      );
       const atendimento = await fetchOne(
         client,
         `SELECT imovel_id FROM atendimentos WHERE cliente_id = $1`,
@@ -562,6 +595,7 @@ async function main() {
 
       if (imagens.total !== 0) throw new Error('Imagens nao foram removidas em cascata.');
       if (vinculos.total !== 0) throw new Error('Vinculos imovel-corretor nao foram removidos em cascata.');
+      if (acessos.total !== 0) throw new Error('Excecoes de acesso nao foram removidas em cascata.');
       if (atendimento.imovel_id !== null) throw new Error('Atendimento deveria manter o historico com imovel_id nulo.');
     });
 

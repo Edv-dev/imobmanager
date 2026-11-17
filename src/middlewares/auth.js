@@ -38,6 +38,26 @@ function requireAuth(req, res, next) {
   return next();
 }
 
+function requireAdministrativeProfile(req, res, next) {
+  if (!req.auth) {
+    return next(
+      new HttpError(401, 'UNAUTHENTICATED', 'Autenticação necessária para acessar este recurso.')
+    );
+  }
+
+  if (!req.auth.usuario.administrativo) {
+    return next(
+      new HttpError(
+        403,
+        'FORBIDDEN',
+        'Acesso restrito a administradores.'
+      )
+    );
+  }
+
+  return next();
+}
+
 function requirePermission(permission) {
   return (req, res, next) => {
     if (!req.auth) {
@@ -47,6 +67,28 @@ function requirePermission(permission) {
     }
 
     if (!req.auth.usuario.permissoes.includes(permission)) {
+      return next(
+        new HttpError(403, 'FORBIDDEN', 'Você não possui permissão para acessar este recurso.')
+      );
+    }
+
+    return next();
+  };
+}
+
+function requireAnyPermission(permissions) {
+  return (req, res, next) => {
+    if (!req.auth) {
+      return next(
+        new HttpError(401, 'UNAUTHENTICATED', 'Autenticação necessária para acessar este recurso.')
+      );
+    }
+
+    const permitido = permissions.some((permission) =>
+      req.auth.usuario.permissoes.includes(permission)
+    );
+
+    if (!permitido) {
       return next(
         new HttpError(403, 'FORBIDDEN', 'Você não possui permissão para acessar este recurso.')
       );
@@ -102,7 +144,9 @@ function redirectIfAuthenticated(req, res, next) {
 module.exports = {
   authenticateSession,
   requireAuth,
+  requireAdministrativeProfile,
   requirePermission,
+  requireAnyPermission,
   csrfProtection,
   requireAuthPage,
   redirectIfAuthenticated,
