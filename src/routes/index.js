@@ -6,6 +6,7 @@ const authRoutes = require('./auth.routes');
 const adminRoutes = require('./admin.routes');
 const corretorRoutes = require('./corretores.routes');
 const imovelRoutes = require('./imoveis.routes');
+const clienteRoutes = require('./clientes.routes');
 const { apiLimiter } = require('../middlewares/rateLimiters');
 
 const router = Router();
@@ -16,5 +17,6 @@ router.use('/auth', authRoutes);
 router.use('/administracao', adminRoutes);
 router.use('/corretores', corretorRoutes);
 router.use('/imoveis', imovelRoutes);
+router.use('/clientes', clienteRoutes);
 
 module.exports = router;

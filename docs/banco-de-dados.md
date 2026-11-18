@@ -1,6 +1,6 @@
 # Modelo de dados do ImobManager
 
-Etapas 02, 04 e 05 — modelagem inicial, autenticação e exceções individuais de acesso no PostgreSQL.
+Etapas 02, 04, 05 e 08 — modelagem inicial, autenticação, exceções individuais de acesso e imóveis de interesse no PostgreSQL.
 
 ## Diagrama ER
 
@@ -27,6 +27,8 @@ erDiagram
     IMOVEIS ||--o{ IMAGENS_IMOVEIS : "possui imagem"
     CORRETORES ||--o{ CLIENTES_CORRETORES : "atende"
     CLIENTES ||--o{ CLIENTES_CORRETORES : "vinculado a"
+    CLIENTES ||--o{ CLIENTES_IMOVEIS_INTERESSE : "interessa-se por"
+    IMOVEIS ||--o{ CLIENTES_IMOVEIS_INTERESSE : "desperta interesse"
     CLIENTES ||--o{ ATENDIMENTOS : "recebe"
     CORRETORES ||--o{ ATENDIMENTOS : "realiza"
     IMOVEIS ||--o{ ATENDIMENTOS : "referencia"
@@ -119,6 +121,11 @@ erDiagram
       bigint corretor_id PK, FK
       boolean principal
     }
+    CLIENTES_IMOVEIS_INTERESSE {
+      bigint cliente_id PK, FK
+      bigint imovel_id PK, FK
+      timestamptz criado_em
+    }
     ATENDIMENTOS {
       bigint id PK
       bigint cliente_id FK
@@ -180,6 +187,7 @@ erDiagram
 | `imagens_imoveis`    | Imagens dos imóveis; no máximo uma principal por imóvel.                   |
 | `imoveis_corretores` | Vínculo N:N entre imóveis e corretores responsáveis.                       |
 | `clientes_corretores`| Vínculo N:N entre clientes e corretores responsáveis.                      |
+| `clientes_imoveis_interesse` | Vínculo N:N entre clientes e imóveis de interesse.                 |
 | `atendimentos`       | Histórico de atendimentos, com cliente, corretor e imóvel opcional.        |
 | `configuracoes`      | Configurações chave/valor em JSONB.                                        |
 | `auditoria`          | Eventos de segurança e operação, sem dados sensíveis desnecessários.       |
@@ -194,6 +202,7 @@ erDiagram
 - O Administrador é identificado por `perfis.administrativo = true` e não precisa de registro em `corretores`, mantendo o acesso administrativo independente da operação.
 - Cada corretor está vinculado a um usuário não excluído, com unicidade garantida por índice parcial que ignora registros excluídos logicamente.
 - Clientes e imóveis podem ser vinculados a vários corretores; o campo `principal` define o responsável e é único por registro (índice parcial).
+- Clientes podem ser vinculados a vários imóveis de interesse, sem duplicidade do mesmo par cliente/imóvel.
 - Um atendimento referencia obrigatoriamente um cliente e um corretor, e opcionalmente um imóvel.
 - A auditoria preserva o `usuario_id` quando possível e também o e-mail no momento do evento.
 - Um usuário pode ter várias sessões e várias solicitações de recuperação; ambas são
@@ -227,6 +236,20 @@ Configurada em `configuracoes`:
 - Exceções individuais em `acessos_imoveis` e `acessos_clientes` têm precedência sobre a
   regra geral: `permitido = true` concede e `permitido = false` nega, com a negação
   prevalecendo sobre vínculos e concessões. Administradores mantêm acesso total.
+
+## Imóveis de interesse
+
+Adicionados pela migration `004_clientes_interesse`:
+
+- `clientes_imoveis_interesse` usa chave primária composta (`cliente_id`, `imovel_id`), o
+  que impede vínculos duplicados.
+- FKs removem os vínculos em cascata quando o cliente ou o imóvel é excluído fisicamente.
+- `criado_em` registra a ordem de inclusão e o índice
+  `idx_clientes_imoveis_interesse_imovel` cobre consultas por imóvel.
+- O detalhe do cliente só retorna imóveis de interesse que também sejam visíveis ao ator,
+  combinando o vínculo com `acessos_imoveis` e `imoveis.visibilidade`.
+- Imóveis excluídos logicamente permanecem vinculados no banco, mas são filtrados nas
+  consultas do módulo de clientes.
 
 ## Sessões e recuperação de senha
 

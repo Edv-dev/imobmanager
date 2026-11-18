@@ -3,8 +3,9 @@
 Documentação da etapa 03 do ImobManager: sistema visual, componentes reutilizáveis,
 estrutura do frontend e critérios de responsividade e acessibilidade. As seções afetadas
 pela etapa 04 foram atualizadas para refletir a autenticação real; a etapa 05 trouxe a
-área administrativa, a etapa 06 ativou o módulo de corretores e a etapa 07 ativou o módulo
-de imóveis. Os fluxos de segurança estão em [autenticacao.md](autenticacao.md).
+área administrativa, a etapa 06 ativou o módulo de corretores, a etapa 07 ativou o módulo
+de imóveis e a etapa 08 ativou o módulo de clientes com atendimentos. Os fluxos de
+segurança estão em [autenticacao.md](autenticacao.md).
 
 ## Objetivo da etapa
 
@@ -149,12 +150,26 @@ de build: os arquivos são servidos diretamente pelo Express.
 - Alteração de situação e exclusão lógica com confirmação.
 - O módulo usa a API real e não compartilha mais a fábrica `module-view.js`.
 
+### Clientes (`#/clientes`)
+
+- Listagem real com busca por nome, CPF, e-mail, telefone, WhatsApp e localização,
+  filtros por tipo de interesse e finalidade, com paginação e estados de carregamento,
+  erro e vazio.
+- Tabela com identificação, contato, interesse, localização e corretor responsável.
+- Formulário em seções (identificação, interesse, corretores e imóveis de interesse), com
+  seletor pesquisável de imóveis e vínculo de responsáveis para administradores.
+- Detalhe com contato, interesse, corretores, imóveis de interesse, atendimentos e
+  histórico de auditoria.
+- Modal de registro de atendimento com tipo, status, data, corretor, imóvel, descrição e
+  observações; a seção de atendimentos depende de `atendimentos.visualizar`.
+- Exclusão lógica com confirmação.
+- O módulo usa a API real e não compartilha mais a fábrica `module-view.js`.
+
 ### Módulos operacionais pendentes
 
-- Clientes e Atendimentos compartilham a fábrica `module-view.js`: cabeçalho, busca,
-  filtros, tabela com cabeçalho, estado vazio e paginação.
-- O botão de cadastro abre um modal com formulário em seções, validação nativa e aviso
-  de que a persistência ocorre na etapa correspondente.
+- Atendimentos continua usando a fábrica `module-view.js` como tela informativa;
+  nesta etapa, o registro e a consulta ocorrem no detalhe do cliente.
+- Relatórios permanecem informativos até a etapa 09.
 - Nenhum registro fictício é apresentado como dado real.
 
 ### Relatórios (`#/relatorios`)
@@ -187,8 +202,8 @@ de build: os arquivos são servidos diretamente pelo Express.
 - **Formulários:** campos de texto, e-mail, telefone, número, data, seleção, textarea,
   checkbox e grupo de input com ícone/ação.
 - **Tabelas:** cabeçalho fixo visual, alinhamento à direita, rolagem horizontal e
-  paginação; as telas de corretores e imóveis usam paginação real e as demais mantêm o
-  estado vazio.
+  paginação; as telas de corretores, imóveis e clientes usam paginação real e as demais
+  mantêm o estado vazio.
 - **Modais:** `<dialog>` nativo com foco inicial no primeiro campo, fechamento por
   Escape/backdrop/botão e limpeza automática ao trocar de rota.
 - **Toasts:** sucesso, erro, aviso e informação, com limite de quatro mensagens e
@@ -224,19 +239,21 @@ Validado com Firefox headless nas resoluções 1440×900 (desktop), 820×1180 (t
   permissões efetivas e token CSRF mantido em memória.
 - A verificação visual de permissões no roteador continua existindo para usabilidade;
   a decisão final é sempre do backend.
-- A área administrativa, o cadastro de corretores e a gestão de imóveis já operam com a
-  API real; clientes, atendimentos e relatórios recebem persistência nas etapas 08 e 09.
+- A área administrativa, o cadastro de corretores, a gestão de imóveis e a gestão de
+  clientes já operam com a API real; a tela isolada de atendimentos e os relatórios
+  recebem persistência/dados na etapa 09.
 - A matriz de permissões e as exceções por registro são carregadas do backend e aplicadas
   no roteador apenas para usabilidade; o servidor mantém a decisão final.
 
 ## Validação executada
 
-- `npm test`: 49 testes aprovados, incluindo `tests/ui.test.js`, `tests/auth.test.js`,
-  `tests/admin.test.js`, `tests/corretores.test.js` e `tests/imoveis.test.js`.
+- `npm test`: 58 testes aprovados, incluindo `tests/ui.test.js`, `tests/auth.test.js`,
+  `tests/admin.test.js`, `tests/corretores.test.js`, `tests/imoveis.test.js` e
+  `tests/clientes.test.js`.
 - Serviços estáticos e módulos JavaScript retornando `200`.
 - Login, shell, dashboard, módulos, relatórios e administração verificados em três
   resoluções, incluindo abertura de modal, menu mobile, toasts e status real da API.
 - A tela administrativa é verificada por teste de interface quanto ao uso da API real e
   à presença das áreas de usuários, permissões, visibilidade e histórico. Os módulos de
-  corretores e de imóveis são validados pelos testes de API e autorização das etapas 06
-  e 07.
+  corretores, imóveis e clientes são validados pelos testes de API e autorização das
+  etapas 06, 07 e 08.

@@ -9,6 +9,7 @@ const EXPECTED_TABLES = [
   'atendimentos',
   'clientes',
   'clientes_corretores',
+  'clientes_imoveis_interesse',
   'configuracoes',
   'corretores',
   'imagens_imoveis',
@@ -38,6 +39,8 @@ const EXPECTED_FKS = [
   'fk_imoveis_corretores_corretor',
   'fk_clientes_corretores_cliente',
   'fk_clientes_corretores_corretor',
+  'fk_clientes_imoveis_interesse_cliente',
+  'fk_clientes_imoveis_interesse_imovel',
   'fk_atendimentos_cliente',
   'fk_atendimentos_corretor',
   'fk_atendimentos_imovel',
@@ -150,7 +153,7 @@ async function main() {
     const existingTables = new Set(tables.map((row) => row.table_name));
     const missingTables = EXPECTED_TABLES.filter((table) => !existingTables.has(table));
 
-    await check('Todas as 18 tabelas existem no schema public', async () => {
+    await check('Todas as 19 tabelas existem no schema public', async () => {
       if (missingTables.length > 0) {
         throw new Error(`Tabelas ausentes: ${missingTables.join(', ')}. Execute npm run migrate:up.`);
       }

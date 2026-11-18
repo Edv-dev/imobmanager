@@ -281,13 +281,13 @@ Em produção, a aplicação recusa `SESSION_SECRET` ausente ou com menos de 32 
 
 ## Testes e validação
 
-- `npm test`: 49 testes aprovados, incluindo `tests/auth.test.js`, `tests/admin.test.js` e
-  `tests/corretores.test.js`.
+- `npm test`: 58 testes aprovados, incluindo `tests/auth.test.js`, `tests/admin.test.js`,
+  `tests/corretores.test.js`, `tests/imoveis.test.js` e `tests/clientes.test.js`.
 - `tests/auth.test.js` cobre: proteção de páginas, credenciais inválidas, login válido,
   cookie e expiração, CSRF no logout, origem inválida, bloqueio após tentativas,
   recuperação com token de uso único, revogação de sessões, política de senha,
   cabeçalhos de segurança e middlewares de autorização.
-- `npm run migrate:status`: migrations 001, 002 e 003 aplicadas.
+- `npm run migrate:status`: migrations 001, 002, 003 e 004 aplicadas.
 - `npm run db:check`: 25 verificações de integridade aprovadas, com rollback ao final.
 
 ## Limitações e próximos passos

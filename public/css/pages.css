@@ -1345,3 +1345,181 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Clientes (etapa 08) */
+.cliente-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+}
+
+.cliente-cell .cell-primary {
+  min-width: 0;
+}
+
+.cliente-interest {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.cliente-interest > span {
+  color: var(--texto-suave);
+  font-size: 0.74rem;
+}
+
+.cliente-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--borda);
+}
+
+.cliente-detail-head .avatar {
+  width: 56px;
+  height: 56px;
+  font-size: 1rem;
+}
+
+.cliente-detail-head h3 {
+  margin: 0;
+  color: var(--azul-marinho);
+  font-size: 1.2rem;
+}
+
+.cliente-detail-head p {
+  margin: 4px 0 8px;
+  color: var(--texto-suave);
+  font-size: 0.82rem;
+}
+
+.cliente-imoveis-selector {
+  display: grid;
+  gap: 10px;
+}
+
+.cliente-imoveis-lista {
+  display: grid;
+  gap: 8px;
+  max-height: 240px;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--cinza-claro);
+}
+
+.cliente-imovel-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--branco);
+  cursor: pointer;
+}
+
+.cliente-imovel-option:hover {
+  border-color: var(--dourado);
+}
+
+.cliente-imovel-option input {
+  margin-top: 3px;
+}
+
+.cliente-imovel-option span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cliente-imovel-option strong {
+  color: var(--azul-marinho);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.cliente-imovel-option small {
+  color: var(--texto-suave);
+  font-size: 0.74rem;
+}
+
+.cliente-atendimentos {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cliente-atendimento {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+}
+
+.cliente-atendimento__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cliente-atendimento__head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.cliente-atendimento__head strong {
+  color: var(--azul-marinho);
+  font-size: 0.84rem;
+}
+
+.cliente-atendimento__head span,
+.cliente-atendimento__meta {
+  color: var(--texto-suave);
+  font-size: 0.74rem;
+}
+
+.cliente-atendimento p {
+  margin: 0;
+  color: var(--texto-principal);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.cliente-atendimento__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cliente-atendimento__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cliente-atendimento__note {
+  padding-top: 8px;
+  border-top: 1px dashed var(--borda);
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 760px) {
+  .cliente-detail-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cliente-atendimento__head {
+    flex-direction: column;
+  }
+}

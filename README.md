@@ -2,7 +2,7 @@
 
 Sistema web de gestão para uma única imobiliária, com arquitetura cliente-servidor e API REST.
 
-**Etapa atual: 07 — Gestão de imóveis.**
+**Etapa atual: 08 — Gestão de clientes.**
 
 ## Visão geral
 
@@ -18,8 +18,10 @@ Sistema web de gestão para uma única imobiliária, com arquitetura cliente-ser
   com contas e consulta de imóveis/clientes conforme a visibilidade configurada.
 - Gestão de imóveis funcional: busca, filtros, CRUD, situação, vínculo de corretores,
   galeria de imagens com ordenação e imagem principal, histórico e exclusão lógica.
+- Gestão de clientes funcional: busca, filtros, CRUD, vínculo de corretores, imóveis de
+  interesse, atendimentos, histórico, visibilidade e exclusão lógica.
 - As demais telas de negócio não exibem dados fictícios; usam estados vazios até a
-  persistência real ser conectada nas etapas 08 e 09, conforme o roteiro.
+  persistência real ser conectada na etapa 09, conforme o roteiro.
 
 ## Arquitetura
 
@@ -65,6 +67,7 @@ imobManager/
 │   ├── autenticacao.md   # fluxos, endpoints, sessões e decisões de segurança
 │   ├── corretores.md     # cadastro, vínculos, permissões e visibilidade
 │   ├── imoveis.md        # CRUD, filtros, imagens, visibilidade e auditoria
+│   ├── clientes.md       # CRUD, vínculos, atendimentos, visibilidade e auditoria
 │   ├── banco-de-dados.md # diagrama ER, relacionamentos e regras de dados
 │   └── interface.md      # design system, telas, componentes e responsividade
 ├── migrations/
@@ -73,7 +76,9 @@ imobManager/
 │   ├── 002_auth_sessions.up.sql        # sessões e recuperação de senha
 │   ├── 002_auth_sessions.down.sql
 │   ├── 003_resource_access.up.sql      # exceções individuais por registro
-│   └── 003_resource_access.down.sql
+│   ├── 003_resource_access.down.sql
+│   ├── 004_clientes_interesse.up.sql   # imóveis de interesse do cliente
+│   └── 004_clientes_interesse.down.sql
 ├── scripts/
 │   ├── create-admin.js   # administrador inicial interativo (npm run admin:create)
 │   ├── db-ping.js        # verifica a conexão com o PostgreSQL
@@ -89,6 +94,7 @@ imobManager/
 │   ├── controllers/
 │   │   ├── admin.controller.js
 │   │   ├── auth.controller.js
+│   │   ├── cliente.controller.js
 │   │   ├── corretor.controller.js
 │   │   ├── imovel.controller.js
 │   │   └── health.controller.js
@@ -99,6 +105,7 @@ imobManager/
 │   │   ├── admin-usuarios.service.js
 │   │   ├── auditoria.service.js
 │   │   ├── auth.service.js
+│   │   ├── cliente.service.js
 │   │   ├── configuracoes.service.js
 │   │   ├── corretor.service.js
 │   │   ├── email.service.js
@@ -108,6 +115,7 @@ imobManager/
 │   ├── models/
 │   │   ├── acesso.model.js
 │   │   ├── auditoria.model.js
+│   │   ├── cliente.model.js
 │   │   ├── configuracao.model.js
 │   │   ├── corretor.model.js
 │   │   ├── imovel.model.js
@@ -120,6 +128,7 @@ imobManager/
 │   │   ├── index.js      # agrega as rotas em /api
 │   │   ├── admin.routes.js
 │   │   ├── auth.routes.js
+│   │   ├── clientes.routes.js
 │   │   ├── corretores.routes.js
 │   │   ├── imoveis.routes.js
 │   │   └── health.routes.js
@@ -157,6 +166,7 @@ imobManager/
     ├── admin.test.js     # usuários, permissões, visibilidade e auditoria
     ├── api.test.js       # healthcheck, 404, JSON inválido e estáticos
     ├── auth.test.js      # login, sessão, CSRF, bloqueio, recuperação e headers
+    ├── clientes.test.js  # CRUD, vínculos, atendimentos, visibilidade e auditoria
     ├── corretores.test.js # CRUD, status, autorização, visibilidade e auditoria
     ├── imoveis.test.js   # CRUD, filtros, imagens, permissões e auditoria
     ├── database.test.js  # indisponibilidade do banco
@@ -256,6 +266,10 @@ A etapa 04 adiciona 2 tabelas de segurança:
   revogação explícita;
 - `recuperacoes_senha`: tokens de recuperação com hash SHA-256, expiração curta e uso único.
 
+A etapa 05 adiciona 2 tabelas de exceções por registro (`acessos_imoveis` e
+`acessos_clientes`). A etapa 08 adiciona `clientes_imoveis_interesse`, totalizando 19
+tabelas no schema.
+
 Regras relevantes:
 
 - Permissões gerais (`perfis_permissoes`) e individuais (`permissoes_usuarios`) ficam em tabelas separadas.
@@ -342,10 +356,14 @@ Acesse:
 - Imóveis (`#/imoveis`) opera com dados reais: busca, filtros avançados, cadastro, edição,
   detalhe, situação, vínculos de corretores e galeria de imagens com ordenação, imagem
   principal e remoção. Imagens são servidas apenas por rota autenticada.
+- Clientes (`#/clientes`) opera com dados reais: busca, filtros, cadastro, edição,
+  detalhe, vínculos de corretores, imóveis de interesse, atendimentos, histórico e
+  exclusão lógica.
 - Dashboard consulta o healthcheck real e exibe banco, API, uptime e ambiente.
 - Indicadores e tabelas não exibem dados fictícios; usam estado vazio com a etapa em que
   cada informação será alimentada.
-- Clientes, atendimentos e relatórios continuam informativos até as etapas 08 e 09.
+- A tela de atendimentos isolada e os relatórios continuam informativos até a etapa 09;
+  nesta etapa, os atendimentos são registrados e consultados no detalhe do cliente.
 - Layout responsivo validado em desktop e celular.
 
 Detalhes do design system e das telas: [docs/interface.md](docs/interface.md).
@@ -353,6 +371,7 @@ Fluxos e decisões de segurança: [docs/autenticacao.md](docs/autenticacao.md).
 Regras administrativas: [docs/administracao.md](docs/administracao.md).
 Regras do cadastro de corretores: [docs/corretores.md](docs/corretores.md).
 Regras da gestão de imóveis: [docs/imoveis.md](docs/imoveis.md).
+Regras da gestão de clientes: [docs/clientes.md](docs/clientes.md).
 
 ### API de autenticação
 
@@ -439,6 +458,29 @@ A listagem aceita `busca`, `tipo`, `finalidade`, `situacao`, `cidade`, `bairro`,
 ou WebP); arquivos ficam fora de `public/` e são servidos apenas com sessão e visibilidade
 válidas. Regras completas: [docs/imoveis.md](docs/imoveis.md).
 
+### API de clientes
+
+Todas as rotas exigem sessão, respondem com `Cache-Control: no-store` e as mutações exigem
+o cabeçalho `X-CSRF-Token` e a permissão indicada.
+
+| Método | Rota                              | Permissão                                    |
+| ------ | --------------------------------- | -------------------------------------------- |
+| GET    | `/api/clientes`                   | `clientes.visualizar`                        |
+| GET    | `/api/clientes/corretores-opcoes` | `clientes.visualizar` (somente administradores) |
+| GET    | `/api/clientes/imoveis-opcoes`    | `clientes.visualizar`                        |
+| GET    | `/api/clientes/:id`               | `clientes.visualizar`                        |
+| GET    | `/api/clientes/:id/historico`     | `auditoria.visualizar`                       |
+| POST   | `/api/clientes`                   | `clientes.criar`                             |
+| PATCH  | `/api/clientes/:id`               | `clientes.editar`                            |
+| DELETE | `/api/clientes/:id`               | `clientes.excluir`                           |
+| POST   | `/api/clientes/:id/atendimentos`  | `atendimentos.criar`                         |
+
+A listagem aceita `busca`, `tipo`, `finalidade`, `localizacao`, `pagina` e `limite`. A
+criação e a edição recebem os dados pessoais, de interesse e as listas `corretores` e
+`imoveisInteresse` (vínculos de corretores são exclusivos de administradores). O detalhe
+retorna cliente, vínculos, atendimentos e resumo conforme as permissões e a visibilidade.
+Regras completas: [docs/clientes.md](docs/clientes.md).
+
 ### Healthcheck
 
 Resposta saudável (`200`):
@@ -477,9 +519,11 @@ cobre CRUD, validações, duplicidades, sincronização de conta e sessões, aut
 visibilidade dos vínculos e auditoria. A suíte `tests/imoveis.test.js` cobre CRUD,
 filtros, validações, código único, vínculos, autorização, visibilidade, imagens
 (envio, download, ordenação, principal e remoção), auditoria e a tela conectada à API.
-A suíte `tests/ui.test.js` verifica login, proteção de `/app.html`, recuperação, área
-administrativa, folhas de estilo, módulos JavaScript e favicon. O `db:check` valida as
-18 tabelas, FKs, índices, seeds, triggers e regras de unicidade, exclusão lógica e
+A suíte `tests/clientes.test.js` cobre CRUD, validações, CPF único, filtros, vínculos de
+corretores e imóveis, atendimentos, visibilidade, permissões, auditoria e a tela conectada
+à API. A suíte `tests/ui.test.js` verifica login, proteção de `/app.html`, recuperação,
+área administrativa, folhas de estilo, módulos JavaScript e favicon. O `db:check` valida
+as 19 tabelas, FKs, índices, seeds, triggers e regras de unicidade, exclusão lógica e
 cascata; todos os dados de teste são revertidos por rollback.
 
 ## Segurança aplicada
@@ -535,7 +579,7 @@ A versão do `package.json` acompanha as versões definidas no roteiro (`0.1.0` 
 - [x] 05 — Administração e permissões
 - [x] 06 — Gestão de corretores
 - [x] 07 — Gestão de imóveis
-- [ ] 08 — Gestão de clientes
+- [x] 08 — Gestão de clientes
 - [ ] 09 — Dashboard e relatórios
 - [ ] 10 — Auditoria e LGPD
 - [ ] 11 — Testes e implantação

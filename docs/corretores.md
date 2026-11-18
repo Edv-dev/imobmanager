@@ -131,9 +131,9 @@ alterados.
 ## Validação
 
 - `node --test tests/corretores.test.js`: 7 testes aprovados.
-- `npm test`: 49 testes aprovados.
+- `npm test`: 58 testes aprovados.
 - `npm run db:check`: 25 verificações aprovadas.
-- `npm run migrate:status`: migrations 001, 002 e 003 aplicadas.
+- `npm run migrate:status`: migrations 001, 002, 003 e 004 aplicadas.
 
 ## Limitações
 
