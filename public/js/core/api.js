@@ -20,23 +20,7 @@ export function limparCsrfToken() {
   csrfToken = null;
 }
 
-export async function request(path, options = {}) {
-  const { method = 'GET', body, headers = {} } = options;
-  const methodUpper = method.toUpperCase();
-  const enviarCsrf = csrfToken && !SAFE_METHODS.has(methodUpper);
-
-  const response = await fetch(path, {
-    method: methodUpper,
-    credentials: 'same-origin',
-    headers: {
-      Accept: 'application/json',
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-      ...(enviarCsrf ? { 'X-CSRF-Token': csrfToken } : {}),
-      ...headers,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
+async function interpretarResposta(response) {
   let data = null;
   const text = await response.text();
 
@@ -57,6 +41,45 @@ export async function request(path, options = {}) {
   }
 
   return data;
+}
+
+export async function request(path, options = {}) {
+  const { method = 'GET', body, headers = {} } = options;
+  const methodUpper = method.toUpperCase();
+  const enviarCsrf = csrfToken && !SAFE_METHODS.has(methodUpper);
+
+  const response = await fetch(path, {
+    method: methodUpper,
+    credentials: 'same-origin',
+    headers: {
+      Accept: 'application/json',
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(enviarCsrf ? { 'X-CSRF-Token': csrfToken } : {}),
+      ...headers,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  return interpretarResposta(response);
+}
+
+export async function requestForm(path, formData, options = {}) {
+  const { method = 'POST', headers = {} } = options;
+  const methodUpper = method.toUpperCase();
+  const enviarCsrf = csrfToken && !SAFE_METHODS.has(methodUpper);
+
+  const response = await fetch(path, {
+    method: methodUpper,
+    credentials: 'same-origin',
+    headers: {
+      Accept: 'application/json',
+      ...(enviarCsrf ? { 'X-CSRF-Token': csrfToken } : {}),
+      ...headers,
+    },
+    body: formData,
+  });
+
+  return interpretarResposta(response);
 }
 
 export async function getHealth() {

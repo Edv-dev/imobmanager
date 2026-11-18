@@ -281,7 +281,7 @@ Em produção, a aplicação recusa `SESSION_SECRET` ausente ou com menos de 32 
 
 ## Testes e validação
 
-- `npm test`: 39 testes aprovados, incluindo `tests/auth.test.js`, `tests/admin.test.js` e
+- `npm test`: 49 testes aprovados, incluindo `tests/auth.test.js`, `tests/admin.test.js` e
   `tests/corretores.test.js`.
 - `tests/auth.test.js` cobre: proteção de páginas, credenciais inválidas, login válido,
   cookie e expiração, CSRF no logout, origem inválida, bloqueio após tentativas,

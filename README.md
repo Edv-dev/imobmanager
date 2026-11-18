@@ -2,7 +2,7 @@
 
 Sistema web de gestão para uma única imobiliária, com arquitetura cliente-servidor e API REST.
 
-**Etapa atual: 06 — Cadastro de corretores.**
+**Etapa atual: 07 — Gestão de imóveis.**
 
 ## Visão geral
 
@@ -16,8 +16,10 @@ Sistema web de gestão para uma única imobiliária, com arquitetura cliente-ser
   exceções individuais, visibilidade de imóveis/clientes e histórico de auditoria.
 - Cadastro de corretores funcional: busca, filtros, CRUD, ativação/desativação, vínculo
   com contas e consulta de imóveis/clientes conforme a visibilidade configurada.
+- Gestão de imóveis funcional: busca, filtros, CRUD, situação, vínculo de corretores,
+  galeria de imagens com ordenação e imagem principal, histórico e exclusão lógica.
 - As demais telas de negócio não exibem dados fictícios; usam estados vazios até a
-  persistência real ser conectada nas etapas 07 a 09, conforme o roteiro.
+  persistência real ser conectada nas etapas 08 e 09, conforme o roteiro.
 
 ## Arquitetura
 
@@ -62,6 +64,7 @@ imobManager/
 │   ├── administracao.md  # usuários, permissões, visibilidade e auditoria
 │   ├── autenticacao.md   # fluxos, endpoints, sessões e decisões de segurança
 │   ├── corretores.md     # cadastro, vínculos, permissões e visibilidade
+│   ├── imoveis.md        # CRUD, filtros, imagens, visibilidade e auditoria
 │   ├── banco-de-dados.md # diagrama ER, relacionamentos e regras de dados
 │   └── interface.md      # design system, telas, componentes e responsividade
 ├── migrations/
@@ -87,6 +90,7 @@ imobManager/
 │   │   ├── admin.controller.js
 │   │   ├── auth.controller.js
 │   │   ├── corretor.controller.js
+│   │   ├── imovel.controller.js
 │   │   └── health.controller.js
 │   ├── services/
 │   │   ├── acesso.service.js        # visibilidade e exceções por registro
@@ -98,12 +102,15 @@ imobManager/
 │   │   ├── configuracoes.service.js
 │   │   ├── corretor.service.js
 │   │   ├── email.service.js
-│   │   └── health.service.js
+│   │   ├── health.service.js
+│   │   ├── imagem.service.js
+│   │   └── imovel.service.js
 │   ├── models/
 │   │   ├── acesso.model.js
 │   │   ├── auditoria.model.js
 │   │   ├── configuracao.model.js
 │   │   ├── corretor.model.js
+│   │   ├── imovel.model.js
 │   │   ├── perfil.model.js
 │   │   ├── permissao.model.js
 │   │   ├── recuperacao.model.js
@@ -114,11 +121,13 @@ imobManager/
 │   │   ├── admin.routes.js
 │   │   ├── auth.routes.js
 │   │   ├── corretores.routes.js
+│   │   ├── imoveis.routes.js
 │   │   └── health.routes.js
 │   ├── middlewares/
 │   │   ├── auth.js       # sessão, autorização, CSRF e proteção de páginas
 │   │   ├── security.js   # verificação de origem e cabeçalhos de segurança
 │   │   ├── rateLimiters.js
+│   │   ├── upload.js      # upload em memória e validação de imagens
 │   │   ├── notFound.js
 │   │   └── errorHandler.js
 │   └── utils/
@@ -149,6 +158,7 @@ imobManager/
     ├── api.test.js       # healthcheck, 404, JSON inválido e estáticos
     ├── auth.test.js      # login, sessão, CSRF, bloqueio, recuperação e headers
     ├── corretores.test.js # CRUD, status, autorização, visibilidade e auditoria
+    ├── imoveis.test.js   # CRUD, filtros, imagens, permissões e auditoria
     ├── database.test.js  # indisponibilidade do banco
     └── ui.test.js        # login, área protegida, administração, CSS e módulos JS
 ```
@@ -171,7 +181,9 @@ Edite o `.env` e preencha:
 
 - `DB_PASSWORD` com a senha do usuário do banco;
 - `SESSION_SECRET` com um valor aleatório de pelo menos 32 caracteres;
-- dados de SMTP, se quiser recuperação de senha por e-mail em produção.
+- dados de SMTP, se quiser recuperação de senha por e-mail em produção;
+- `UPLOAD_DIR`, `UPLOAD_MAX_IMAGE_BYTES` e `UPLOAD_MAX_IMAGES_PER_PROPERTY`, se quiser
+  alterar o diretório ou os limites padrão de imagens.
 
 Gere um segredo de sessão com:
 
@@ -327,17 +339,20 @@ Acesse:
 - Corretores (`#/corretores`) opera com dados reais: busca, filtro, cadastro, edição,
   detalhe, ativação/desativação e vínculos com imóveis e clientes. O cadastro vincula
   uma conta operacional existente e sincroniza nome, situação e sessões.
+- Imóveis (`#/imoveis`) opera com dados reais: busca, filtros avançados, cadastro, edição,
+  detalhe, situação, vínculos de corretores e galeria de imagens com ordenação, imagem
+  principal e remoção. Imagens são servidas apenas por rota autenticada.
 - Dashboard consulta o healthcheck real e exibe banco, API, uptime e ambiente.
 - Indicadores e tabelas não exibem dados fictícios; usam estado vazio com a etapa em que
   cada informação será alimentada.
-- Imóveis, clientes, atendimentos e relatórios continuam informativos até as etapas
-  07 a 09.
+- Clientes, atendimentos e relatórios continuam informativos até as etapas 08 e 09.
 - Layout responsivo validado em desktop e celular.
 
 Detalhes do design system e das telas: [docs/interface.md](docs/interface.md).
 Fluxos e decisões de segurança: [docs/autenticacao.md](docs/autenticacao.md).
 Regras administrativas: [docs/administracao.md](docs/administracao.md).
 Regras do cadastro de corretores: [docs/corretores.md](docs/corretores.md).
+Regras da gestão de imóveis: [docs/imoveis.md](docs/imoveis.md).
 
 ### API de autenticação
 
@@ -398,6 +413,32 @@ A listagem aceita `busca`, `status` (`ativos` ou `inativos`), `pagina` e `limite
 criação vincula um usuário operacional existente; o detalhe retorna imóveis e clientes
 filtrados pela visibilidade do ator. Regras completas: [docs/corretores.md](docs/corretores.md).
 
+### API de imóveis
+
+Todas as rotas exigem sessão, respondem com `Cache-Control: no-store` e as mutações exigem
+o cabeçalho `X-CSRF-Token` e a permissão indicada.
+
+| Método | Rota                                   | Permissão                   |
+| ------ | -------------------------------------- | --------------------------- |
+| GET    | `/api/imoveis`                         | `imoveis.visualizar`        |
+| GET    | `/api/imoveis/corretores-opcoes`       | `imoveis.visualizar` (admin)|
+| GET    | `/api/imoveis/:id`                     | `imoveis.visualizar`        |
+| GET    | `/api/imoveis/:id/historico`           | `auditoria.visualizar`      |
+| POST   | `/api/imoveis`                         | `imoveis.criar`             |
+| PATCH  | `/api/imoveis/:id`                     | `imoveis.editar`            |
+| PATCH  | `/api/imoveis/:id/situacao`            | `imoveis.editar`            |
+| DELETE | `/api/imoveis/:id`                     | `imoveis.excluir`           |
+| POST   | `/api/imoveis/:id/imagens`             | `imoveis.imagens.gerenciar` |
+| PUT    | `/api/imoveis/:id/imagens/ordem`       | `imoveis.imagens.gerenciar` |
+| PATCH  | `/api/imoveis/:id/imagens/:imagemId/principal` | `imoveis.imagens.gerenciar` |
+| DELETE | `/api/imoveis/:id/imagens/:imagemId`   | `imoveis.imagens.gerenciar` |
+| GET    | `/api/imoveis/:id/imagens/:imagemId/arquivo` | `imoveis.visualizar`  |
+
+A listagem aceita `busca`, `tipo`, `finalidade`, `situacao`, `cidade`, `bairro`,
+`valorMin`, `valorMax`, `pagina` e `limite`. Uploads usam `multipart/form-data` (JPEG, PNG
+ou WebP); arquivos ficam fora de `public/` e são servidos apenas com sessão e visibilidade
+válidas. Regras completas: [docs/imoveis.md](docs/imoveis.md).
+
 ### Healthcheck
 
 Resposta saudável (`200`):
@@ -433,10 +474,13 @@ A suíte `tests/admin.test.js` valida permissões, CSRF, CRUD de usuários e cor
 status, redefinição de senha, exceções individuais, visibilidade, isolamento entre
 corretores e auditoria, restaurando o estado do banco. A suíte `tests/corretores.test.js`
 cobre CRUD, validações, duplicidades, sincronização de conta e sessões, autorização,
-visibilidade dos vínculos e auditoria. A suíte `tests/ui.test.js` verifica login, proteção
-de `/app.html`, recuperação, área administrativa, folhas de estilo, módulos JavaScript e
-favicon. O `db:check` valida as 18 tabelas, FKs, índices, seeds, triggers e regras de
-unicidade, exclusão lógica e cascata; todos os dados de teste são revertidos por rollback.
+visibilidade dos vínculos e auditoria. A suíte `tests/imoveis.test.js` cobre CRUD,
+filtros, validações, código único, vínculos, autorização, visibilidade, imagens
+(envio, download, ordenação, principal e remoção), auditoria e a tela conectada à API.
+A suíte `tests/ui.test.js` verifica login, proteção de `/app.html`, recuperação, área
+administrativa, folhas de estilo, módulos JavaScript e favicon. O `db:check` valida as
+18 tabelas, FKs, índices, seeds, triggers e regras de unicidade, exclusão lógica e
+cascata; todos os dados de teste são revertidos por rollback.
 
 ## Segurança aplicada
 
@@ -464,7 +508,12 @@ unicidade, exclusão lógica e cascata; todos os dados de teste são revertidos 
   administrativos; o perfil Administrador mantém as permissões essenciais.
 - Auditoria de login, falhas, bloqueio, logout, solicitação de recuperação, redefinição e
   ações administrativas, sem registrar senhas ou tokens.
-- Limite de tamanho para corpos JSON e formulários (`1mb`).
+- Limite de tamanho para corpos JSON e formulários (`1mb`), com limite separado para
+  imagens (`UPLOAD_MAX_IMAGE_BYTES`).
+- Upload de imagens validado por magic bytes, armazenado fora de `public/` e servido por
+  rota autenticada que reaplica permissão e visibilidade.
+- Caminhos de imagem normalizados e restritos ao diretório de uploads, bloqueando
+  travessia de diretório.
 - Erros padronizados, sem stack trace em produção e sem detalhes internos.
 - Consultas parametrizadas via `pg`.
 
@@ -485,7 +534,7 @@ A versão do `package.json` acompanha as versões definidas no roteiro (`0.1.0` 
 - [x] 04 — Autenticação e segurança
 - [x] 05 — Administração e permissões
 - [x] 06 — Gestão de corretores
-- [ ] 07 — Gestão de imóveis
+- [x] 07 — Gestão de imóveis
 - [ ] 08 — Gestão de clientes
 - [ ] 09 — Dashboard e relatórios
 - [ ] 10 — Auditoria e LGPD
@@ -499,6 +548,8 @@ A versão do `package.json` acompanha as versões definidas no roteiro (`0.1.0` 
   administrador criado com `npm run admin:create`. Não há credenciais padrão.
 - **Erro `LAST_ADMIN`:** mantenha ao menos um administrador ativo; reative ou crie outro
   antes de desativar o atual.
+- **Imagem não aparece:** confirme se o arquivo existe em `UPLOAD_DIR` e se o usuário tem
+  `imoveis.visualizar` e visibilidade sobre o imóvel.
 - **Acessos inesperados a imóveis/clientes:** revise a regra em `#/administracao` na aba
   Visibilidade e as exceções individuais do usuário; negações prevalecem.
 - **Não recebi o e-mail de recuperação:** em desenvolvimento, consulte o link no console

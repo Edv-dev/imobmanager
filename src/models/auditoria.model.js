@@ -91,6 +91,24 @@ async function listar({ busca = '', tipo = '', pagina = 1, limite = 20 } = {}) {
   return { eventos: rows, total: totais[0].total };
 }
 
+async function listarPorRegistro(entidade, registroId, limite = 50) {
+  const { rows } = await query(
+    `SELECT a.id,
+            a.usuario_email,
+            a.data_hora,
+            a.tipo_operacao,
+            a.resultado,
+            a.detalhes
+       FROM auditoria a
+      WHERE a.entidade = $1
+        AND a.registro_id = $2
+      ORDER BY a.data_hora DESC, a.id DESC
+      LIMIT $3`,
+    [entidade, String(registroId), limite]
+  );
+  return rows;
+}
+
 async function listarTipos() {
   const { rows } = await query(
     `SELECT DISTINCT tipo_operacao
@@ -104,5 +122,6 @@ module.exports = {
   registrar,
   registrarSeguro,
   listar,
+  listarPorRegistro,
   listarTipos,
 };

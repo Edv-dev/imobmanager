@@ -130,7 +130,8 @@ A consulta aceita `busca`, `tipo`, `pagina` e `limite`, com limite máximo de 50
 
 - `node --test tests/admin.test.js`: 8 testes aprovados.
 - `node --test tests/corretores.test.js`: 7 testes aprovados.
-- `npm test`: 39 testes aprovados.
+- `node --test tests/imoveis.test.js`: 10 testes aprovados.
+- `npm test`: 49 testes aprovados.
 - `npm run db:check`: 25 verificações aprovadas, incluindo as novas tabelas, FKs, índices
   únicos e triggers de `atualizado_em`.
 - `npm run migrate:status`: migrations 001, 002 e 003 aplicadas.

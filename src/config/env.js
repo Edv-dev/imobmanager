@@ -21,6 +21,9 @@ const nodeEnv = process.env.NODE_ENV || 'development';
 const databaseUrl = process.env.DATABASE_URL || '';
 const port = toInt(process.env.PORT, 3000);
 const host = process.env.HOST || '0.0.0.0';
+const uploadsDir = process.env.UPLOAD_DIR
+  ? path.resolve(process.env.UPLOAD_DIR)
+  : path.resolve(__dirname, '..', '..', 'uploads');
 
 const config = {
   env: nodeEnv,
@@ -61,6 +64,11 @@ const config = {
     password: process.env.DB_PASSWORD || '',
     ssl: toBool(process.env.DB_SSL, false),
     poolMax: toInt(process.env.DB_POOL_MAX, 10),
+  },
+  uploads: {
+    dir: uploadsDir,
+    maxImageBytes: toInt(process.env.UPLOAD_MAX_IMAGE_BYTES, 5 * 1024 * 1024),
+    maxImagesPerProperty: toInt(process.env.UPLOAD_MAX_IMAGES_PER_PROPERTY, 10),
   },
 };
 
@@ -108,6 +116,26 @@ function assertConfig() {
     if (config.isProduction && !config.db.password) {
       throw new Error('Configuração inválida: DB_PASSWORD é obrigatório em produção.');
     }
+  }
+
+  if (!config.uploads.dir) {
+    throw new Error('Configuração inválida: UPLOAD_DIR não pode ser vazio.');
+  }
+
+  if (!Number.isInteger(config.uploads.maxImageBytes) || config.uploads.maxImageBytes < 1024) {
+    throw new Error(
+      'Configuração inválida: UPLOAD_MAX_IMAGE_BYTES deve ser pelo menos 1024.'
+    );
+  }
+
+  if (
+    !Number.isInteger(config.uploads.maxImagesPerProperty) ||
+    config.uploads.maxImagesPerProperty < 1 ||
+    config.uploads.maxImagesPerProperty > 50
+  ) {
+    throw new Error(
+      'Configuração inválida: UPLOAD_MAX_IMAGES_PER_PROPERTY deve estar entre 1 e 50.'
+    );
   }
 }
 
