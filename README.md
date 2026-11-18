@@ -2,7 +2,7 @@
 
 Sistema web de gestão para uma única imobiliária, com arquitetura cliente-servidor e API REST.
 
-**Etapa atual: 05 — Administração e permissões.**
+**Etapa atual: 06 — Cadastro de corretores.**
 
 ## Visão geral
 
@@ -14,8 +14,10 @@ Sistema web de gestão para uma única imobiliária, com arquitetura cliente-ser
   auditoria dos eventos de acesso.
 - Área administrativa funcional: usuários, corretores vinculados, perfis e permissões,
   exceções individuais, visibilidade de imóveis/clientes e histórico de auditoria.
-- Telas de negócio não exibem dados fictícios; usam estados vazios até a persistência
-  real ser conectada nas etapas 06 a 09, conforme o roteiro.
+- Cadastro de corretores funcional: busca, filtros, CRUD, ativação/desativação, vínculo
+  com contas e consulta de imóveis/clientes conforme a visibilidade configurada.
+- As demais telas de negócio não exibem dados fictícios; usam estados vazios até a
+  persistência real ser conectada nas etapas 07 a 09, conforme o roteiro.
 
 ## Arquitetura
 
@@ -59,6 +61,7 @@ imobManager/
 ├── docs/
 │   ├── administracao.md  # usuários, permissões, visibilidade e auditoria
 │   ├── autenticacao.md   # fluxos, endpoints, sessões e decisões de segurança
+│   ├── corretores.md     # cadastro, vínculos, permissões e visibilidade
 │   ├── banco-de-dados.md # diagrama ER, relacionamentos e regras de dados
 │   └── interface.md      # design system, telas, componentes e responsividade
 ├── migrations/
@@ -83,6 +86,7 @@ imobManager/
 │   ├── controllers/
 │   │   ├── admin.controller.js
 │   │   ├── auth.controller.js
+│   │   ├── corretor.controller.js
 │   │   └── health.controller.js
 │   ├── services/
 │   │   ├── acesso.service.js        # visibilidade e exceções por registro
@@ -92,6 +96,7 @@ imobManager/
 │   │   ├── auditoria.service.js
 │   │   ├── auth.service.js
 │   │   ├── configuracoes.service.js
+│   │   ├── corretor.service.js
 │   │   ├── email.service.js
 │   │   └── health.service.js
 │   ├── models/
@@ -108,6 +113,7 @@ imobManager/
 │   │   ├── index.js      # agrega as rotas em /api
 │   │   ├── admin.routes.js
 │   │   ├── auth.routes.js
+│   │   ├── corretores.routes.js
 │   │   └── health.routes.js
 │   ├── middlewares/
 │   │   ├── auth.js       # sessão, autorização, CSRF e proteção de páginas
@@ -142,6 +148,7 @@ imobManager/
     ├── admin.test.js     # usuários, permissões, visibilidade e auditoria
     ├── api.test.js       # healthcheck, 404, JSON inválido e estáticos
     ├── auth.test.js      # login, sessão, CSRF, bloqueio, recuperação e headers
+    ├── corretores.test.js # CRUD, status, autorização, visibilidade e auditoria
     ├── database.test.js  # indisponibilidade do banco
     └── ui.test.js        # login, área protegida, administração, CSS e módulos JS
 ```
@@ -317,16 +324,20 @@ Acesse:
 - Administração (`#/administracao`) opera com dados reais: criação e edição de usuários,
   cadastro de corretor vinculado, ativação/desativação, redefinição de senha, permissões
   individuais, perfis, exceções por imóvel/cliente e consulta à auditoria.
+- Corretores (`#/corretores`) opera com dados reais: busca, filtro, cadastro, edição,
+  detalhe, ativação/desativação e vínculos com imóveis e clientes. O cadastro vincula
+  uma conta operacional existente e sincroniza nome, situação e sessões.
 - Dashboard consulta o healthcheck real e exibe banco, API, uptime e ambiente.
 - Indicadores e tabelas não exibem dados fictícios; usam estado vazio com a etapa em que
   cada informação será alimentada.
-- Formulários dos módulos operacionais, filtros e ações informativas continuam sem
-  persistência até as etapas 06 a 09.
+- Imóveis, clientes, atendimentos e relatórios continuam informativos até as etapas
+  07 a 09.
 - Layout responsivo validado em desktop e celular.
 
 Detalhes do design system e das telas: [docs/interface.md](docs/interface.md).
 Fluxos e decisões de segurança: [docs/autenticacao.md](docs/autenticacao.md).
 Regras administrativas: [docs/administracao.md](docs/administracao.md).
+Regras do cadastro de corretores: [docs/corretores.md](docs/corretores.md).
 
 ### API de autenticação
 
@@ -368,6 +379,25 @@ CSRF nas mutações e a permissão indicada.
 | PUT    | `/api/administracao/configuracoes/visibilidade`  | `configuracoes.gerenciar`|
 | GET    | `/api/administracao/auditoria`                   | `auditoria.visualizar`   |
 
+### API de corretores
+
+Todas as rotas exigem sessão, respondem com `Cache-Control: no-store` e as mutações exigem
+o cabeçalho `X-CSRF-Token` e a permissão indicada.
+
+| Método | Rota                                | Permissão               |
+| ------ | ----------------------------------- | ----------------------- |
+| GET    | `/api/corretores`                   | `corretores.visualizar` |
+| GET    | `/api/corretores/resumo`            | `corretores.visualizar` |
+| GET    | `/api/corretores/usuarios-disponiveis` | `corretores.criar`  |
+| GET    | `/api/corretores/:id`               | `corretores.visualizar` |
+| POST   | `/api/corretores`                   | `corretores.criar`      |
+| PATCH  | `/api/corretores/:id`               | `corretores.editar`     |
+| PATCH  | `/api/corretores/:id/status`        | `corretores.desativar`  |
+
+A listagem aceita `busca`, `status` (`ativos` ou `inativos`), `pagina` e `limite`. A
+criação vincula um usuário operacional existente; o detalhe retorna imóveis e clientes
+filtrados pela visibilidade do ator. Regras completas: [docs/corretores.md](docs/corretores.md).
+
 ### Healthcheck
 
 Resposta saudável (`200`):
@@ -401,11 +431,12 @@ cria usuários temporários no banco configurado, valida login, sessão, CSRF, o
 bloqueio, recuperação, revogação e cabeçalhos de segurança, e remove os dados ao final.
 A suíte `tests/admin.test.js` valida permissões, CSRF, CRUD de usuários e corretores,
 status, redefinição de senha, exceções individuais, visibilidade, isolamento entre
-corretores e auditoria, restaurando o estado do banco. A suíte `tests/ui.test.js` verifica
-login, proteção de `/app.html`, recuperação, área administrativa, folhas de estilo,
-módulos JavaScript e favicon. O `db:check` valida as 18 tabelas, FKs, índices, seeds,
-triggers e regras de unicidade, exclusão lógica e cascata; todos os dados de teste são
-revertidos por rollback.
+corretores e auditoria, restaurando o estado do banco. A suíte `tests/corretores.test.js`
+cobre CRUD, validações, duplicidades, sincronização de conta e sessões, autorização,
+visibilidade dos vínculos e auditoria. A suíte `tests/ui.test.js` verifica login, proteção
+de `/app.html`, recuperação, área administrativa, folhas de estilo, módulos JavaScript e
+favicon. O `db:check` valida as 18 tabelas, FKs, índices, seeds, triggers e regras de
+unicidade, exclusão lógica e cascata; todos os dados de teste são revertidos por rollback.
 
 ## Segurança aplicada
 
@@ -453,7 +484,7 @@ A versão do `package.json` acompanha as versões definidas no roteiro (`0.1.0` 
 - [x] 03 — Identidade visual e interface
 - [x] 04 — Autenticação e segurança
 - [x] 05 — Administração e permissões
-- [ ] 06 — Gestão de corretores
+- [x] 06 — Gestão de corretores
 - [ ] 07 — Gestão de imóveis
 - [ ] 08 — Gestão de clientes
 - [ ] 09 — Dashboard e relatórios

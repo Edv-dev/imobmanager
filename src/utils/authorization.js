@@ -20,6 +20,12 @@ function garantirAdministrador(ator) {
   }
 }
 
+function garantirPermissao(ator, permissao, mensagem = 'Você não possui permissão para esta ação.') {
+  if (!ator?.usuario?.permissoes?.includes(permissao)) {
+    throw new HttpError(403, 'FORBIDDEN', mensagem);
+  }
+}
+
 function garantirNaoProprio(ator, alvoId, code = 'SELF_OPERATION') {
   if (Number(ator?.usuario?.id) === Number(alvoId)) {
     throw new HttpError(
@@ -34,5 +40,6 @@ module.exports = {
   CORE_ADMIN_PERMISSIONS,
   ADMIN_MODULE,
   garantirAdministrador,
+  garantirPermissao,
   garantirNaoProprio,
 };

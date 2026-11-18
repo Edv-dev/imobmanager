@@ -51,6 +51,10 @@ Base: `/api/administracao`.
 - CPF, CRECI e e-mail de corretor ativo são únicos. E-mail de usuário ativo também é único.
 - Desativar uma conta revoga todas as sessões ativas e desativa o corretor vinculado;
   reativar a conta reativa o corretor de perfil operacional, mas não recria sessões.
+- O formulário administrativo pode criar a conta e o corretor juntos. O módulo
+  `#/corretores` também vincula contas operacionais existentes que ainda não tenham
+  corretor; as regras estão em [corretores.md](corretores.md).
+- Nome, situação e sessões são sincronizados entre a conta e o corretor pelos dois fluxos.
 - A exclusão é lógica no banco; a interface usa ativação/desativação.
 - O último administrador ativo não pode ser desativado nem rebaixado (`LAST_ADMIN`).
 - O administrador não pode desativar a própria conta, alterar o próprio perfil nem
@@ -125,7 +129,8 @@ A consulta aceita `busca`, `tipo`, `pagina` e `limite`, com limite máximo de 50
 ## Validação
 
 - `node --test tests/admin.test.js`: 8 testes aprovados.
-- `npm test`: 32 testes aprovados.
+- `node --test tests/corretores.test.js`: 7 testes aprovados.
+- `npm test`: 39 testes aprovados.
 - `npm run db:check`: 25 verificações aprovadas, incluindo as novas tabelas, FKs, índices
   únicos e triggers de `atualizado_em`.
 - `npm run migrate:status`: migrations 001, 002 e 003 aplicadas.

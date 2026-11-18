@@ -192,7 +192,7 @@ erDiagram
 
 - Um perfil possui vários usuários; cada usuário possui exatamente um perfil.
 - O Administrador é identificado por `perfis.administrativo = true` e não precisa de registro em `corretores`, mantendo o acesso administrativo independente da operação.
-- Cada corretor está vinculado a um usuário ativo, com unicidade garantida por índice parcial que ignora registros excluídos logicamente.
+- Cada corretor está vinculado a um usuário não excluído, com unicidade garantida por índice parcial que ignora registros excluídos logicamente.
 - Clientes e imóveis podem ser vinculados a vários corretores; o campo `principal` define o responsável e é único por registro (índice parcial).
 - Um atendimento referencia obrigatoriamente um cliente e um corretor, e opcionalmente um imóvel.
 - A auditoria preserva o `usuario_id` quando possível e também o e-mail no momento do evento.
