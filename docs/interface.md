@@ -4,7 +4,8 @@ Documentação da etapa 03 do ImobManager: sistema visual, componentes reutiliz�
 estrutura do frontend e critérios de responsividade e acessibilidade. As seções afetadas
 pela etapa 04 foram atualizadas para refletir a autenticação real; a etapa 05 trouxe a
 área administrativa, a etapa 06 ativou o módulo de corretores, a etapa 07 ativou o módulo
-de imóveis e a etapa 08 ativou o módulo de clientes com atendimentos. Os fluxos de
+de imóveis e a etapa 08 ativou o módulo de clientes com atendimentos. A etapa 09 ativou o
+dashboard, os relatórios e a tela isolada de atendimentos com dados reais. Os fluxos de
 segurança estão em [autenticacao.md](autenticacao.md).
 
 ## Objetivo da etapa
@@ -117,11 +118,23 @@ de build: os arquivos são servidos diretamente pelo Express.
 
 ### Dashboard (`#/dashboard`)
 
-- Quatro cards de indicadores com valores "—" e a etapa em que cada dado será alimentado.
-- Card de atividade recente com estado vazio.
-- Status do sistema integrado a `/api/health`: banco, API, uptime e ambiente, com
+- Quatro cards de indicadores reais: imóveis, corretores ativos, clientes e atendimentos,
+  com recortes de disponíveis, novos em 30 dias e agendados.
+- Gráficos de barras por situação e finalidade e colunas dos últimos seis meses para
+  clientes e atendimentos, com estado vazio quando não há dados.
+- Card de atividade recente com cliente, corretor, tipo, status e data.
+- Card de status do sistema integrado a `/api/health`: banco, API, uptime e ambiente, com
   botão "Verificar novamente".
-- Atalhos rápidos para os módulos.
+- Atalhos rápidos para os módulos e indicação do horário de atualização.
+- Skeletons durante o carregamento; blocos sem permissão não são exibidos.
+
+### Atendimentos (`#/atendimentos`)
+
+- Listagem real com busca por cliente, corretor, imóvel ou descrição, filtros por tipo,
+  status e período, além de paginação.
+- Tabela com data, cliente, corretor, imóvel, tipo, status e descrição.
+- Estados de carregamento, erro e vazio; o registro continua no detalhe do cliente.
+- A tela depende de `atendimentos.visualizar` e respeita a visibilidade de clientes.
 
 ### Corretores (`#/corretores`)
 
@@ -165,19 +178,15 @@ de build: os arquivos são servidos diretamente pelo Express.
 - Exclusão lógica com confirmação.
 - O módulo usa a API real e não compartilha mais a fábrica `module-view.js`.
 
-### Módulos operacionais pendentes
-
-- Atendimentos continua usando a fábrica `module-view.js` como tela informativa;
-  nesta etapa, o registro e a consulta ocorrem no detalhe do cliente.
-- Relatórios permanecem informativos até a etapa 09.
-- Nenhum registro fictício é apresentado como dado real.
-
 ### Relatórios (`#/relatorios`)
 
-- Filtros por período, corretor e tipo.
-- Seis cartões de relatórios com botão de geração; a ação informa que os dados reais
-  entram na etapa 09.
-- Textos indicam PDF e CSV como formatos previstos.
+- Filtros por período, corretor, finalidade, tipo e status de atendimento.
+- Cinco cartões de relatórios: imóveis por situação, imóveis por finalidade, imóveis por
+  corretor, clientes por corretor e histórico de atendimentos.
+- Resultado com resumo, descrição dos filtros aplicados, tabela rolável e botões de
+  exportação em CSV e PDF, exibidos conforme `relatorios.exportar`.
+- Estados de carregamento, erro, vazio e feedback de download.
+- A tela respeita a visibilidade de imóveis/clientes e as permissões de módulo.
 
 ### Administração (`#/administracao`)
 
@@ -239,21 +248,20 @@ Validado com Firefox headless nas resoluções 1440×900 (desktop), 820×1180 (t
   permissões efetivas e token CSRF mantido em memória.
 - A verificação visual de permissões no roteador continua existindo para usabilidade;
   a decisão final é sempre do backend.
-- A área administrativa, o cadastro de corretores, a gestão de imóveis e a gestão de
-  clientes já operam com a API real; a tela isolada de atendimentos e os relatórios
-  recebem persistência/dados na etapa 09.
+- A área administrativa, o cadastro de corretores, a gestão de imóveis, a gestão de
+  clientes, o dashboard, os relatórios e os atendimentos já operam com a API real.
 - A matriz de permissões e as exceções por registro são carregadas do backend e aplicadas
   no roteador apenas para usabilidade; o servidor mantém a decisão final.
 
 ## Validação executada
 
-- `npm test`: 58 testes aprovados, incluindo `tests/ui.test.js`, `tests/auth.test.js`,
-  `tests/admin.test.js`, `tests/corretores.test.js`, `tests/imoveis.test.js` e
-  `tests/clientes.test.js`.
+- `npm test`: 64 testes aprovados, incluindo `tests/ui.test.js`, `tests/auth.test.js`,
+  `tests/admin.test.js`, `tests/corretores.test.js`, `tests/imoveis.test.js`,
+  `tests/clientes.test.js` e `tests/relatorios.test.js`.
 - Serviços estáticos e módulos JavaScript retornando `200`.
 - Login, shell, dashboard, módulos, relatórios e administração verificados em três
   resoluções, incluindo abertura de modal, menu mobile, toasts e status real da API.
 - A tela administrativa é verificada por teste de interface quanto ao uso da API real e
   à presença das áreas de usuários, permissões, visibilidade e histórico. Os módulos de
-  corretores, imóveis e clientes são validados pelos testes de API e autorização das
-  etapas 06, 07 e 08.
+  corretores, imóveis, clientes, dashboard, relatórios e atendimentos são validados pelos
+  testes de API e autorização das etapas 06 a 09.

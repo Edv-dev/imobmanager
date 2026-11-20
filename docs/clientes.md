@@ -178,7 +178,7 @@ O histórico do detalhe é retornado por `GET /:id/historico` e exige
 - Não há histórico de alterações de valores campo a campo; a auditoria registra a lista de
   campos alterados, não os valores anteriores.
 - A exclusão de cliente é lógica e não remove atendimentos nem vínculos físicos.
-- A tela de atendimentos isolada continua informativa; nesta etapa, o registro e a
-  consulta de atividades ocorrem no detalhe do cliente.
+- A tela isolada de atendimentos foi ativada na etapa 09; o registro continua no detalhe
+  do cliente e a consulta consolidada ocorre em `#/atendimentos`.
 - A visibilidade é global por configuração, combinada com exceções individuais; não há
   configuração por cliente.

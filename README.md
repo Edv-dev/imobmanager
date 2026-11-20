@@ -2,7 +2,7 @@
 
 Sistema web de gestão para uma única imobiliária, com arquitetura cliente-servidor e API REST.
 
-**Etapa atual: 08 — Gestão de clientes.**
+**Etapa atual: 09 — Dashboard e relatórios.**
 
 ## Visão geral
 
@@ -20,8 +20,10 @@ Sistema web de gestão para uma única imobiliária, com arquitetura cliente-ser
   galeria de imagens com ordenação e imagem principal, histórico e exclusão lógica.
 - Gestão de clientes funcional: busca, filtros, CRUD, vínculo de corretores, imóveis de
   interesse, atendimentos, histórico, visibilidade e exclusão lógica.
-- As demais telas de negócio não exibem dados fictícios; usam estados vazios até a
-  persistência real ser conectada na etapa 09, conforme o roteiro.
+- Dashboard e relatórios funcionais: indicadores reais, gráficos, atividade recente,
+  histórico de atendimentos com filtros e exportação em CSV e PDF.
+- As telas de negócio usam dados reais da API; nenhum registro fictício é apresentado
+  como informação do sistema.
 
 ## Arquitetura
 
@@ -68,6 +70,7 @@ imobManager/
 │   ├── corretores.md     # cadastro, vínculos, permissões e visibilidade
 │   ├── imoveis.md        # CRUD, filtros, imagens, visibilidade e auditoria
 │   ├── clientes.md       # CRUD, vínculos, atendimentos, visibilidade e auditoria
+│   ├── dashboard-relatorios.md # indicadores, relatórios e exportações
 │   ├── banco-de-dados.md # diagrama ER, relacionamentos e regras de dados
 │   └── interface.md      # design system, telas, componentes e responsividade
 ├── migrations/
@@ -93,16 +96,19 @@ imobManager/
 │   │   └── database.js   # pool de conexões e verificação de saúde do banco
 │   ├── controllers/
 │   │   ├── admin.controller.js
+│   │   ├── atendimento.controller.js
 │   │   ├── auth.controller.js
 │   │   ├── cliente.controller.js
 │   │   ├── corretor.controller.js
 │   │   ├── imovel.controller.js
+│   │   ├── relatorio.controller.js
 │   │   └── health.controller.js
 │   ├── services/
 │   │   ├── acesso.service.js        # visibilidade e exceções por registro
 │   │   ├── admin-audit.service.js
 │   │   ├── admin-permissoes.service.js
 │   │   ├── admin-usuarios.service.js
+│   │   ├── atendimento.service.js
 │   │   ├── auditoria.service.js
 │   │   ├── auth.service.js
 │   │   ├── cliente.service.js
@@ -111,7 +117,8 @@ imobManager/
 │   │   ├── email.service.js
 │   │   ├── health.service.js
 │   │   ├── imagem.service.js
-│   │   └── imovel.service.js
+│   │   ├── imovel.service.js
+│   │   └── relatorio.service.js
 │   ├── models/
 │   │   ├── acesso.model.js
 │   │   ├── auditoria.model.js
@@ -122,15 +129,19 @@ imobManager/
 │   │   ├── perfil.model.js
 │   │   ├── permissao.model.js
 │   │   ├── recuperacao.model.js
+│   │   ├── relatorio.model.js
 │   │   ├── sessao.model.js
 │   │   └── usuario.model.js
 │   ├── routes/
 │   │   ├── index.js      # agrega as rotas em /api
 │   │   ├── admin.routes.js
+│   │   ├── atendimentos.routes.js
 │   │   ├── auth.routes.js
 │   │   ├── clientes.routes.js
 │   │   ├── corretores.routes.js
+│   │   ├── dashboard.routes.js
 │   │   ├── imoveis.routes.js
+│   │   ├── relatorios.routes.js
 │   │   └── health.routes.js
 │   ├── middlewares/
 │   │   ├── auth.js       # sessão, autorização, CSRF e proteção de páginas
@@ -169,6 +180,7 @@ imobManager/
     ├── clientes.test.js  # CRUD, vínculos, atendimentos, visibilidade e auditoria
     ├── corretores.test.js # CRUD, status, autorização, visibilidade e auditoria
     ├── imoveis.test.js   # CRUD, filtros, imagens, permissões e auditoria
+    ├── relatorios.test.js # dashboard, relatórios, atendimentos e exportações
     ├── database.test.js  # indisponibilidade do banco
     └── ui.test.js        # login, área protegida, administração, CSS e módulos JS
 ```
@@ -359,11 +371,13 @@ Acesse:
 - Clientes (`#/clientes`) opera com dados reais: busca, filtros, cadastro, edição,
   detalhe, vínculos de corretores, imóveis de interesse, atendimentos, histórico e
   exclusão lógica.
-- Dashboard consulta o healthcheck real e exibe banco, API, uptime e ambiente.
-- Indicadores e tabelas não exibem dados fictícios; usam estado vazio com a etapa em que
-  cada informação será alimentada.
-- A tela de atendimentos isolada e os relatórios continuam informativos até a etapa 09;
-  nesta etapa, os atendimentos são registrados e consultados no detalhe do cliente.
+- Dashboard (`#/dashboard`) opera com dados reais: indicadores de imóveis, corretores,
+  clientes e atendimentos, gráficos por situação/finalidade, atividade recente, saúde da
+  API e atalhos para os módulos.
+- Atendimentos (`#/atendimentos`) opera com dados reais: busca por cliente, corretor,
+  imóvel ou descrição, filtros por tipo, status e período, além de paginação.
+- Relatórios (`#/relatorios`) opera com dados reais: filtros por período, corretor,
+  finalidade, tipo e status, geração de cinco relatórios e exportação em CSV e PDF.
 - Layout responsivo validado em desktop e celular.
 
 Detalhes do design system e das telas: [docs/interface.md](docs/interface.md).
@@ -372,6 +386,7 @@ Regras administrativas: [docs/administracao.md](docs/administracao.md).
 Regras do cadastro de corretores: [docs/corretores.md](docs/corretores.md).
 Regras da gestão de imóveis: [docs/imoveis.md](docs/imoveis.md).
 Regras da gestão de clientes: [docs/clientes.md](docs/clientes.md).
+Regras do dashboard e dos relatórios: [docs/dashboard-relatorios.md](docs/dashboard-relatorios.md).
 
 ### API de autenticação
 
@@ -481,6 +496,27 @@ criação e a edição recebem os dados pessoais, de interesse e as listas `corr
 retorna cliente, vínculos, atendimentos e resumo conforme as permissões e a visibilidade.
 Regras completas: [docs/clientes.md](docs/clientes.md).
 
+### API do dashboard, relatórios e atendimentos
+
+Todas as rotas exigem sessão, respondem com `Cache-Control: no-store` e a permissão
+indicada. Consultas reaplicam a visibilidade de imóveis/clientes do ator.
+
+| Método | Rota                                                    | Permissão                |
+| ------ | ------------------------------------------------------- | ------------------------ |
+| GET    | `/api/dashboard`                                        | `dashboard.visualizar`   |
+| GET    | `/api/relatorios`                                       | `relatorios.visualizar`  |
+| GET    | `/api/relatorios/opcoes`                                | `relatorios.visualizar`  |
+| GET    | `/api/relatorios/:relatorio`                            | `relatorios.visualizar` + módulo |
+| GET    | `/api/relatorios/:relatorio/exportacao?formato=csv\|pdf`| `relatorios.exportar`    |
+| GET    | `/api/atendimentos`                                     | `atendimentos.visualizar`|
+
+Os relatórios disponíveis são `imoveis-situacao`, `imoveis-finalidade`,
+`imoveis-corretor`, `clientes-corretor` e `atendimentos`. Os filtros aceitos são `inicio`
+e `fim` (`YYYY-MM-DD`), `corretor` (id), `finalidade` (`venda` ou `aluguel`), `tipo` e
+`status` de atendimento. Datas inválidas ou períodos invertidos retornam `422`. A
+listagem de atendimentos também aceita `busca`, `pagina` e `limite`. Regras completas:
+[docs/dashboard-relatorios.md](docs/dashboard-relatorios.md).
+
 ### Healthcheck
 
 Resposta saudável (`200`):
@@ -521,8 +557,11 @@ filtros, validações, código único, vínculos, autorização, visibilidade, i
 (envio, download, ordenação, principal e remoção), auditoria e a tela conectada à API.
 A suíte `tests/clientes.test.js` cobre CRUD, validações, CPF único, filtros, vínculos de
 corretores e imóveis, atendimentos, visibilidade, permissões, auditoria e a tela conectada
-à API. A suíte `tests/ui.test.js` verifica login, proteção de `/app.html`, recuperação,
-área administrativa, folhas de estilo, módulos JavaScript e favicon. O `db:check` valida
+à API. A suíte `tests/relatorios.test.js` cobre dashboard, os cinco relatórios, filtros e
+datas inválidas, visibilidade vinculada, permissões de consulta/exportação, exportação CSV
+e PDF e a listagem de atendimentos. A suíte `tests/ui.test.js` verifica login, proteção de
+`/app.html`, recuperação, área administrativa, folhas de estilo, módulos JavaScript e
+favicon. O `db:check` valida
 as 19 tabelas, FKs, índices, seeds, triggers e regras de unicidade, exclusão lógica e
 cascata; todos os dados de teste são revertidos por rollback.
 
@@ -580,7 +619,7 @@ A versão do `package.json` acompanha as versões definidas no roteiro (`0.1.0` 
 - [x] 06 — Gestão de corretores
 - [x] 07 — Gestão de imóveis
 - [x] 08 — Gestão de clientes
-- [ ] 09 — Dashboard e relatórios
+- [x] 09 — Dashboard e relatórios
 - [ ] 10 — Auditoria e LGPD
 - [ ] 11 — Testes e implantação
 
