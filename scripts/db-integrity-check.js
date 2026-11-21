@@ -249,11 +249,47 @@ async function main() {
           WHERE p.nome = 'Corretor'`
       );
 
-      if (total.total !== 24) throw new Error(`Esperadas 24 permissoes, encontradas ${total.total}.`);
+      if (total.total !== 26) throw new Error(`Esperadas 26 permissoes, encontradas ${total.total}.`);
       if (adminTotal.total !== total.total) {
         throw new Error(`Administrador deveria ter ${total.total} permissoes, possui ${adminTotal.total}.`);
       }
       if (corretorTotal.total < 1) throw new Error('Corretor sem permissoes operacionais iniciais.');
+    });
+
+    await check('Permissoes de auditoria e LGPD estao disponiveis', async () => {
+      const { rows } = await client.query(
+        `SELECT chave FROM permissoes
+          WHERE chave IN ('auditoria.gerenciar', 'lgpd.gerenciar')
+          ORDER BY chave`
+      );
+
+      if (rows.length !== 2) {
+        throw new Error('Permissoes auditoria.gerenciar e lgpd.gerenciar devem existir.');
+      }
+    });
+
+    await check('Auditoria e somente inclusao e possui retencao configurada', async () => {
+      const trigger = await fetchOne(
+        client,
+        `SELECT tgname FROM pg_trigger
+          WHERE tgname = 'trg_auditoria_somente_inclusao'
+            AND NOT tgisinternal`
+      );
+
+      if (!trigger) throw new Error('Trigger de imutabilidade da auditoria ausente.');
+
+      const config = await fetchOne(
+        client,
+        `SELECT valor FROM configuracoes WHERE chave = 'auditoria.retencao_dias'`
+      );
+
+      if (!config) throw new Error('Configuracao auditoria.retencao_dias ausente.');
+
+      const dias = Number(config.valor);
+
+      if (!Number.isInteger(dias) || dias < 30 || dias > 3650) {
+        throw new Error(`Valor invalido para auditoria.retencao_dias: ${config.valor}.`);
+      }
     });
 
     await check('Configuracoes de visibilidade existem com valores validos', async () => {

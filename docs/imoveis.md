@@ -162,9 +162,9 @@ exige `auditoria.visualizar` e é retornado por `GET /:id/historico`.
 ## Validação
 
 - `node --test tests/imoveis.test.js`: 10 testes aprovados.
-- `npm test`: 58 testes aprovados.
-- `npm run db:check`: 25 verificações aprovadas.
-- `npm run migrate:status`: migrations 001, 002, 003 e 004 aplicadas.
+- `npm test`: 71 testes aprovados.
+- `npm run db:check`: 27 verificações aprovadas.
+- `npm run migrate:status`: migrations 001, 002, 003, 004 e 005 aplicadas.
 
 ## Limitações
 

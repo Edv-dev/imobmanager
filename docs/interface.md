@@ -190,8 +190,8 @@ de build: os arquivos são servidos diretamente pelo Express.
 
 ### Administração (`#/administracao`)
 
-- Abas Visão geral, Usuários, Perfis e permissões, Visibilidade e Histórico, exibidas
-  conforme as permissões efetivas do usuário.
+- Abas Visão geral, Usuários, Perfis e permissões, Visibilidade, LGPD e Histórico,
+  exibidas conforme as permissões efetivas do usuário.
 - Visão geral com contagens reais de contas, administradores, corretores e sessões.
 - Usuários: busca, filtros por perfil/status, paginação, criação e edição de conta,
   cadastro de corretor vinculado, ativação/desativação e redefinição de senha.
@@ -200,8 +200,10 @@ de build: os arquivos são servidos diretamente pelo Express.
 - Perfis: cartões com permissões por módulo e editor completo do catálogo.
 - Visibilidade: regra geral para imóveis e clientes e exceções por registro, com filtro
   local, indicação de vínculo e precedência da negação.
-- Histórico: consulta paginada da auditoria com busca, tipo de evento, resultado e
-  detalhes em JSON.
+- Histórico: consulta paginada da auditoria com busca, tipo, resultado, entidade, datas
+  e detalhes em JSON; card de retenção e expurgo para `auditoria.gerenciar`.
+- LGPD: busca de clientes, exportação em JSON e anonimização com confirmação, motivo e
+  protocolo, além das últimas operações registradas.
 - Formulários usam modais, validação nativa e mensagens de erro do servidor sem perder
   os dados digitados.
 
@@ -255,13 +257,13 @@ Validado com Firefox headless nas resoluções 1440×900 (desktop), 820×1180 (t
 
 ## Validação executada
 
-- `npm test`: 64 testes aprovados, incluindo `tests/ui.test.js`, `tests/auth.test.js`,
+- `npm test`: 71 testes aprovados, incluindo `tests/ui.test.js`, `tests/auth.test.js`,
   `tests/admin.test.js`, `tests/corretores.test.js`, `tests/imoveis.test.js`,
-  `tests/clientes.test.js` e `tests/relatorios.test.js`.
+  `tests/clientes.test.js`, `tests/relatorios.test.js` e `tests/lgpd.test.js`.
 - Serviços estáticos e módulos JavaScript retornando `200`.
 - Login, shell, dashboard, módulos, relatórios e administração verificados em três
   resoluções, incluindo abertura de modal, menu mobile, toasts e status real da API.
 - A tela administrativa é verificada por teste de interface quanto ao uso da API real e
-  à presença das áreas de usuários, permissões, visibilidade e histórico. Os módulos de
-  corretores, imóveis, clientes, dashboard, relatórios e atendimentos são validados pelos
-  testes de API e autorização das etapas 06 a 09.
+  à presença das áreas de usuários, permissões, visibilidade, LGPD, retenção e histórico.
+  Os módulos de corretores, imóveis, clientes, dashboard, relatórios e atendimentos são
+  validados pelos testes de API e autorização das etapas 06 a 10.

@@ -19,7 +19,8 @@
     "migrate:up": "node scripts/migrate.js up",
     "migrate:down": "node scripts/migrate.js down",
     "migrate:status": "node scripts/migrate.js status",
-    "admin:create": "node scripts/create-admin.js"
+    "admin:create": "node scripts/create-admin.js",
+    "audit:purge": "node scripts/purge-audit.js"
   },
   "keywords": [
     "imobiliaria",

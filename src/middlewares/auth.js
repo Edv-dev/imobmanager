@@ -1,6 +1,7 @@
 'use strict';
 
 const authService = require('../services/auth.service');
+const auditoriaService = require('../services/auditoria.service');
 const { csrfTokenForSession, safeEqualText } = require('../utils/tokens');
 const HttpError = require('../utils/http-error');
 const config = require('../config/env');
@@ -29,8 +30,16 @@ async function authenticateSession(req, res, next) {
   return next();
 }
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   if (!req.auth) {
+    await auditoriaService
+      .registrarAcessoNegado(req, {
+        motivo: 'nao_autenticado',
+        status: 401,
+        code: 'UNAUTHENTICATED',
+      })
+      .catch(() => {});
+
     return next(
       new HttpError(401, 'UNAUTHENTICATED', 'Autenticação necessária para acessar este recurso.')
     );
@@ -38,14 +47,30 @@ function requireAuth(req, res, next) {
   return next();
 }
 
-function requireAdministrativeProfile(req, res, next) {
+async function requireAdministrativeProfile(req, res, next) {
   if (!req.auth) {
+    await auditoriaService
+      .registrarAcessoNegado(req, {
+        motivo: 'nao_autenticado',
+        status: 401,
+        code: 'UNAUTHENTICATED',
+      })
+      .catch(() => {});
+
     return next(
       new HttpError(401, 'UNAUTHENTICATED', 'Autenticação necessária para acessar este recurso.')
     );
   }
 
   if (!req.auth.usuario.administrativo) {
+    await auditoriaService
+      .registrarAcessoNegado(req, {
+        motivo: 'perfil_nao_administrativo',
+        status: 403,
+        code: 'FORBIDDEN',
+      })
+      .catch(() => {});
+
     return next(
       new HttpError(
         403,
@@ -59,14 +84,32 @@ function requireAdministrativeProfile(req, res, next) {
 }
 
 function requirePermission(permission) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (!req.auth) {
+      await auditoriaService
+        .registrarAcessoNegado(req, {
+          motivo: 'nao_autenticado',
+          permissao: permission,
+          status: 401,
+          code: 'UNAUTHENTICATED',
+        })
+        .catch(() => {});
+
       return next(
         new HttpError(401, 'UNAUTHENTICATED', 'Autenticação necessária para acessar este recurso.')
       );
     }
 
     if (!req.auth.usuario.permissoes.includes(permission)) {
+      await auditoriaService
+        .registrarAcessoNegado(req, {
+          motivo: 'permissao_ausente',
+          permissao: permission,
+          status: 403,
+          code: 'FORBIDDEN',
+        })
+        .catch(() => {});
+
       return next(
         new HttpError(403, 'FORBIDDEN', 'Você não possui permissão para acessar este recurso.')
       );
@@ -77,8 +120,17 @@ function requirePermission(permission) {
 }
 
 function requireAnyPermission(permissions) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (!req.auth) {
+      await auditoriaService
+        .registrarAcessoNegado(req, {
+          motivo: 'nao_autenticado',
+          permissao: permissions.join('|'),
+          status: 401,
+          code: 'UNAUTHENTICATED',
+        })
+        .catch(() => {});
+
       return next(
         new HttpError(401, 'UNAUTHENTICATED', 'Autenticação necessária para acessar este recurso.')
       );
@@ -89,6 +141,15 @@ function requireAnyPermission(permissions) {
     );
 
     if (!permitido) {
+      await auditoriaService
+        .registrarAcessoNegado(req, {
+          motivo: 'permissao_ausente',
+          permissao: permissions.join('|'),
+          status: 403,
+          code: 'FORBIDDEN',
+        })
+        .catch(() => {});
+
       return next(
         new HttpError(403, 'FORBIDDEN', 'Você não possui permissão para acessar este recurso.')
       );
@@ -98,7 +159,7 @@ function requireAnyPermission(permissions) {
   };
 }
 
-function csrfProtection(req, res, next) {
+async function csrfProtection(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
@@ -111,6 +172,8 @@ function csrfProtection(req, res, next) {
   const esperado = csrfTokenForSession(req.sessionToken);
 
   if (!safeEqualText(recebido, esperado)) {
+    await auditoriaService.registrarCsrfInvalido(req).catch(() => {});
+
     return next(
       new HttpError(403, 'CSRF_INVALID', 'Requisição inválida. Atualize a página e tente novamente.')
     );

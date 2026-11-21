@@ -280,12 +280,32 @@ Adicionadas pela migration `003_resource_access`:
 - Índices cobrem usuário, registro e autor da concessão.
 - Triggers mantêm `atualizado_em` nas duas tabelas.
 
+## Auditoria, retenção e LGPD
+
+Adicionadas pela migration `005_auditoria_lgpd`:
+
+- Permissões `auditoria.gerenciar` e `lgpd.gerenciar`, concedidas ao perfil Administrador.
+- Configuração `auditoria.retencao_dias` em `configuracoes` (número entre 30 e 3650).
+- Trigger `trg_auditoria_somente_inclusao`, que bloqueia `UPDATE` e `DELETE` em
+  `auditoria` com erro `42501`, exceto quando a transação define
+  `imobmanager.auditoria_manutencao = 'on'`.
+- A manutenção é usada apenas pelo expurgo de retenção e pela redação de dados pessoais
+  durante a anonimização de clientes.
+- A anonimização substitui o CPF por identificador derivado do ID e preenche
+  `excluido_em`; o índice único parcial de CPF ativo não é afetado por registros já
+  excluídos.
+- Eventos de auditoria guardam IP e user agent; dados pessoais em `detalhes` de eventos
+  ligados ao cliente são removidos na anonimização.
+
 ## Exclusão lógica
 
 - `usuarios`, `corretores`, `clientes` e `imoveis` usam `excluido_em`.
 - Índices únicos parciais ignoram registros excluídos, permitindo reutilizar e-mail, CPF, CRECI e código interno após exclusão lógica.
-- `atendimentos` e `auditoria` não possuem exclusão física pela aplicação: atendimentos usam `status = 'cancelado'` e auditoria é somente inclusão.
+- `atendimentos` e `auditoria` não possuem exclusão física pela aplicação: atendimentos usam `status = 'cancelado'` e auditoria é somente inclusão. A anonimização LGPD substitui as descrições de atendimentos e remove observações.
 - A exclusão física de um imóvel remove imagens e vínculos em cascata; atendimentos mantêm o histórico com `imovel_id = NULL`.
+- A exclusão física de um usuário depende de não haver auditoria apontando para ele; o
+  `ON DELETE SET NULL` da FK tenta atualizar a auditoria e é bloqueado pelo trigger de
+  imutabilidade. Por isso a aplicação usa desativação, não exclusão física.
 
 ## Integridade e índices
 
@@ -301,9 +321,9 @@ Adicionadas pela migration `003_resource_access`:
 A migration cria apenas dados de referência, não dados de negócio:
 
 - Perfis `Administrador` (administrativo) e `Corretor`.
-- Catálogo com 24 permissões.
+- Catálogo com 26 permissões.
 - Administrador com todas as permissões; Corretor com 14 permissões operacionais iniciais.
-- Configurações de visibilidade padrão.
+- Configurações de visibilidade padrão e `auditoria.retencao_dias = 365`.
 
 ## Operação
 

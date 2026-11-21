@@ -1,6 +1,7 @@
 'use strict';
 
 const config = require('../config/env');
+const auditoriaService = require('../services/auditoria.service');
 const HttpError = require('../utils/http-error');
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -9,7 +10,14 @@ function origemEsperada(req) {
   return `${req.protocol}://${req.get('host')}`;
 }
 
-function originCheck(req, res, next) {
+async function negarOrigem(req, next) {
+  await auditoriaService.registrarOrigemInvalida(req).catch(() => {});
+  return next(
+    new HttpError(403, 'ORIGIN_INVALID', 'Origem da requisição não permitida.')
+  );
+}
+
+async function originCheck(req, res, next) {
   if (SAFE_METHODS.has(req.method)) return next();
 
   const secFetchSite = req.get('sec-fetch-site');
@@ -18,9 +26,7 @@ function originCheck(req, res, next) {
     secFetchSite &&
     !['same-origin', 'none'].includes(secFetchSite.toLowerCase())
   ) {
-    return next(
-      new HttpError(403, 'ORIGIN_INVALID', 'Origem da requisição não permitida.')
-    );
+    return negarOrigem(req, next);
   }
 
   const origin = req.get('origin');
@@ -31,9 +37,7 @@ function originCheck(req, res, next) {
     try {
       origemRecebida = new URL(origin);
     } catch {
-      return next(
-        new HttpError(403, 'ORIGIN_INVALID', 'Origem da requisição não permitida.')
-      );
+      return negarOrigem(req, next);
     }
 
     const esperada = new URL(origemEsperada(req));
@@ -42,9 +46,7 @@ function originCheck(req, res, next) {
       origemRecebida.protocol !== esperada.protocol ||
       origemRecebida.host !== esperada.host
     ) {
-      return next(
-        new HttpError(403, 'ORIGIN_INVALID', 'Origem da requisição não permitida.')
-      );
+      return negarOrigem(req, next);
     }
   }
 

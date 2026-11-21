@@ -1,6 +1,6 @@
 'use strict';
 
-const { query } = require('../config/database');
+const { pool, query } = require('../config/database');
 
 function normalizarIp(ip) {
   if (typeof ip !== 'string' || ip.trim() === '') return null;
@@ -45,20 +45,55 @@ async function registrarSeguro(evento) {
   }
 }
 
-async function listar({ busca = '', tipo = '', pagina = 1, limite = 20 } = {}) {
+async function listar({
+  busca = '',
+  tipo = '',
+  resultado = '',
+  entidade = '',
+  usuarioId = null,
+  inicio = null,
+  fim = null,
+  pagina = 1,
+  limite = 20,
+} = {}) {
   const filtros = [];
   const params = [];
 
   if (busca) {
     params.push(`%${busca}%`);
     filtros.push(
-      `(a.tipo_operacao ILIKE $${params.length} OR a.usuario_email ILIKE $${params.length} OR a.entidade ILIKE $${params.length})`
+      `(a.tipo_operacao ILIKE $${params.length} OR a.usuario_email ILIKE $${params.length} OR a.entidade ILIKE $${params.length} OR a.registro_id ILIKE $${params.length})`
     );
   }
 
   if (tipo) {
     params.push(tipo);
     filtros.push(`a.tipo_operacao = $${params.length}`);
+  }
+
+  if (resultado) {
+    params.push(resultado);
+    filtros.push(`a.resultado = $${params.length}`);
+  }
+
+  if (entidade) {
+    params.push(entidade);
+    filtros.push(`a.entidade = $${params.length}`);
+  }
+
+  if (usuarioId) {
+    params.push(usuarioId);
+    filtros.push(`a.usuario_id = $${params.length}`);
+  }
+
+  if (inicio) {
+    params.push(inicio);
+    filtros.push(`a.data_hora >= $${params.length}::date`);
+  }
+
+  if (fim) {
+    params.push(fim);
+    filtros.push(`a.data_hora < ($${params.length}::date + INTERVAL '1 day')`);
   }
 
   const where = filtros.length ? `WHERE ${filtros.join(' AND ')}` : '';
@@ -80,6 +115,8 @@ async function listar({ busca = '', tipo = '', pagina = 1, limite = 20 } = {}) {
             a.entidade,
             a.registro_id,
             a.resultado,
+            a.ip,
+            a.user_agent,
             a.detalhes
        FROM auditoria a
        ${where}
@@ -118,10 +155,81 @@ async function listarTipos() {
   return rows.map((row) => row.tipo_operacao);
 }
 
+async function listarEventosLgpd(limite = 10) {
+  const { rows } = await query(
+    `SELECT a.id,
+            a.usuario_email,
+            a.data_hora,
+            a.tipo_operacao,
+            a.registro_id,
+            a.resultado,
+            a.detalhes
+       FROM auditoria a
+      WHERE a.tipo_operacao IN ('lgpd.cliente_exportado', 'lgpd.cliente_anonimizado')
+      ORDER BY a.data_hora DESC, a.id DESC
+      LIMIT $1`,
+    [limite]
+  );
+  return rows;
+}
+
+async function contarAnteriores(dias) {
+  const { rows } = await query(
+    `SELECT count(*)::int AS total
+       FROM auditoria
+      WHERE data_hora < now() - ($1::int * INTERVAL '1 day')`,
+    [dias]
+  );
+  return rows[0].total;
+}
+
+async function expurgarAntigos(dias) {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      "SELECT set_config('imobmanager.auditoria_manutencao', 'on', true)"
+    );
+    const { rows } = await client.query(
+      `DELETE FROM auditoria
+        WHERE data_hora < now() - ($1::int * INTERVAL '1 day')
+       RETURNING id`,
+      [dias]
+    );
+    await client.query('COMMIT');
+    return rows.length;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function redigirDetalhesCliente(client, clienteId, chaves) {
+  await client.query(
+    "SELECT set_config('imobmanager.auditoria_manutencao', 'on', true)"
+  );
+  const { rowCount } = await client.query(
+    `UPDATE auditoria
+        SET detalhes = detalhes - $2::text[]
+      WHERE entidade = 'clientes'
+        AND registro_id = $1
+        AND detalhes <> '{}'::jsonb`,
+    [String(clienteId), chaves]
+  );
+  return rowCount;
+}
+
 module.exports = {
   registrar,
   registrarSeguro,
   listar,
   listarPorRegistro,
   listarTipos,
+  listarEventosLgpd,
+  contarAnteriores,
+  expurgarAntigos,
+  redigirDetalhesCliente,
 };

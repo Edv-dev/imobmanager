@@ -8,6 +8,7 @@ const { once } = require('node:events');
 
 const createApp = require('../src/app');
 const { pool, closePool } = require('../src/config/database');
+const { expurgarAuditoriaTeste } = require('./helpers/auditoria');
 const { hashPassword } = require('../src/utils/password');
 
 const SENHA = 'SenhaSegura123!';
@@ -276,13 +277,10 @@ after(async () => {
     [gerarCpf(baseCpf('cliente-a')), gerarCpf(baseCpf('cliente-b'))],
   ]);
   await pool.query(`DELETE FROM corretores WHERE creci LIKE $1`, [`${PREFIX}%`]);
+  await expurgarAuditoriaTeste('usuario_email LIKE $1 OR detalhes::text LIKE $1', [
+    `%${PREFIX}%`,
+  ]);
   await pool.query(`DELETE FROM usuarios WHERE email LIKE $1`, [`${PREFIX}%`]);
-  await pool.query(
-    `DELETE FROM auditoria
-      WHERE usuario_email LIKE $1
-         OR detalhes::text LIKE $1`,
-    [`%${PREFIX}%`]
-  );
 
   await closePool();
 });

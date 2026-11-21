@@ -11,6 +11,7 @@ const { pool, closePool } = require('../src/config/database');
 const { hashPassword } = require('../src/utils/password');
 const acessoService = require('../src/services/acesso.service');
 const configuracaoModel = require('../src/models/configuracao.model');
+const { expurgarAuditoriaTeste } = require('./helpers/auditoria');
 
 const SENHA = 'SenhaSegura123!';
 const SENHA_NOVA = 'NovaSenhaSegura456!';
@@ -250,14 +251,11 @@ after(async () => {
     [gerarCpf(baseCpf('cliente-a')), gerarCpf(baseCpf('cliente-b'))],
   ]);
   await pool.query(`DELETE FROM corretores WHERE creci LIKE $1`, [`${PREFIX}%`]);
+  await expurgarAuditoriaTeste('usuario_email LIKE $1 OR detalhes::text LIKE $1', [
+    `%${PREFIX}%`,
+  ]);
   await pool.query(`DELETE FROM usuarios WHERE email LIKE $1`, [`${PREFIX}%`]);
   await pool.query(`DELETE FROM perfis WHERE nome = $1`, [`Perfil ${PREFIX}`]);
-  await pool.query(
-    `DELETE FROM auditoria
-      WHERE usuario_email LIKE $1
-         OR detalhes::text LIKE $1`,
-    [`%${PREFIX}%`]
-  );
 
   await closePool();
 });

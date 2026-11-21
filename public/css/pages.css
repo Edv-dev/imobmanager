@@ -457,6 +457,10 @@
   white-space: nowrap;
 }
 
+.admin-lgpd-notice {
+  margin: 16px 22px;
+}
+
 .admin-chips {
   display: flex;
   flex-wrap: wrap;

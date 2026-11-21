@@ -127,7 +127,7 @@ test('módulos JavaScript da interface são servidos', async () => {
   }
 });
 
-test('tela administrativa utiliza a API real e oferece as quatro áreas de gestão', async () => {
+test('tela administrativa utiliza a API real e oferece as áreas de gestão', async () => {
   const response = await fetch(`${baseUrl}/js/views/administracao.js`);
   const script = await response.text();
 
@@ -137,9 +137,13 @@ test('tela administrativa utiliza a API real e oferece as quatro áreas de gest�
   assert.match(script, /\/api\/administracao\/perfis/);
   assert.match(script, /\/api\/administracao\/configuracoes\/visibilidade/);
   assert.match(script, /\/api\/administracao\/auditoria/);
+  assert.match(script, /\/api\/administracao\/auditoria\/retencao/);
+  assert.match(script, /\/api\/administracao\/lgpd/);
   assert.match(script, /admin-permissoes-usuario/);
   assert.match(script, /admin-acessos-usuario/);
   assert.match(script, /data-admin-visibilidade/);
+  assert.match(script, /data-admin-retencao/);
+  assert.match(script, /data-admin-lgpd-busca/);
   assert.match(script, /Histórico/);
   assert.equal(script.includes('serão implementadas na etapa 05'), false);
 

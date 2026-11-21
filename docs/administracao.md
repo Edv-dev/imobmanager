@@ -1,6 +1,8 @@
 # Administração e permissões
 
-Etapa 05 — gestão de usuários, perfis, permissões, visibilidade e auditoria.
+Etapa 05 — gestão de usuários, perfis, permissões, visibilidade e auditoria. A etapa 10
+complementa a área com consulta avançada, retenção e atendimento aos direitos dos
+titulares (LGPD). Detalhes em [lgpd-auditoria.md](lgpd-auditoria.md).
 
 ## Visão geral
 
@@ -13,7 +15,8 @@ as abas às permissões efetivas do usuário:
 | Usuários           | Cadastro, edição, status, senha, permissões e acessos.          | `usuarios.gerenciar`      |
 | Perfis e permissões| Matriz de permissões por perfil e catálogo do sistema.          | `permissoes.gerenciar`    |
 | Visibilidade       | Regra geral e exceções individuais por imóvel/cliente.          | `configuracoes.gerenciar` ou `permissoes.gerenciar` |
-| Histórico          | Consulta paginada da auditoria.                                 | `auditoria.visualizar`    |
+| LGPD               | Exportação e anonimização de dados de clientes.                 | `lgpd.gerenciar`          |
+| Histórico          | Consulta paginada da auditoria e retenção.                      | `auditoria.visualizar` e `auditoria.gerenciar` |
 
 Todas as rotas usam `requireAuth` e `requireAdministrativeProfile`, respondem com
 `Cache-Control: no-store` e aplicam a autorização no servidor. Mutações exigem o
@@ -41,7 +44,14 @@ Base: `/api/administracao`.
 | GET    | `/recursos`                                       | Imóveis e clientes disponíveis para exceções.   |
 | GET    | `/configuracoes`                                  | Regra atual e usuários não administrativos.     |
 | PUT    | `/configuracoes/visibilidade`                     | Define `todos` ou `vinculados` por módulo.      |
-| GET    | `/auditoria`                                      | Histórico com busca, tipo e paginação.          |
+| GET    | `/auditoria`                                      | Histórico com busca, tipo, resultado, entidade, usuário, período e paginação. |
+| GET    | `/auditoria/retencao`                             | Prazo atual e quantidade de eventos expiráveis. |
+| PUT    | `/auditoria/retencao`                             | Define o prazo entre 30 e 3650 dias.            |
+| POST   | `/auditoria/retencao/executar`                    | Expurga eventos além do prazo.                  |
+| GET    | `/lgpd`                                           | Resumo das últimas operações LGPD.              |
+| GET    | `/lgpd/clientes`                                  | Busca clientes por nome, CPF ou e-mail.         |
+| GET    | `/lgpd/clientes/:id/dados`                        | Exporta os dados pessoais em JSON.              |
+| POST   | `/lgpd/clientes/:id/anonimizar`                   | Anonimiza o cliente após confirmação e motivo.  |
 
 ## Regras de usuários e corretores
 
@@ -113,7 +123,18 @@ detalhes sem senhas ou tokens:
 - `admin.acessos_usuario_atualizados`
 - `admin.visibilidade_atualizada`
 
-A consulta aceita `busca`, `tipo`, `pagina` e `limite`, com limite máximo de 50 registros.
+A etapa 10 acrescenta:
+
+- `seguranca.acesso_negado`, `seguranca.csrf_invalido` e `seguranca.origem_invalida`;
+- `admin.retencao_auditoria_atualizada` e `admin.auditoria_expurgada`;
+- `lgpd.cliente_exportado` e `lgpd.cliente_anonimizado`.
+
+A tabela é somente inclusão, protegida pelo trigger `trg_auditoria_somente_inclusao`.
+Expurgo e redação de dados pessoais usam manutenção transacional interna. A consulta
+aceita `busca`, `tipo`, `resultado`, `entidade`, `usuarioId`, `inicio`, `fim`, `pagina`
+e `limite`, com limite máximo de 50 registros. A retenção padrão é de 365 dias
+(configurável entre 30 e 3650) e pode ser executada manualmente ou por
+`npm run audit:purge`. Fluxo completo em [lgpd-auditoria.md](lgpd-auditoria.md).
 
 ## Interface
 
@@ -123,7 +144,10 @@ A consulta aceita `busca`, `tipo`, `pagina` e `limite`, com limite máximo de 50
 - Editor de exceções por registro com filtro local e indicação de vínculo.
 - Editor de permissões do perfil com bloqueio das permissões essenciais e do módulo
   administrativo conforme o tipo de perfil.
-- Histórico com filtros, paginação e detalhes em JSON.
+- Histórico com filtros combinados, paginação, detalhes em JSON e card de retenção para
+  usuários com `auditoria.gerenciar`.
+- Aba LGPD com busca de clientes, download em JSON e anonimização com confirmação,
+  motivo e protocolo.
 - Todas as mensagens de erro do servidor são exibidas sem recarregar a página.
 
 ## Validação
@@ -132,10 +156,11 @@ A consulta aceita `busca`, `tipo`, `pagina` e `limite`, com limite máximo de 50
 - `node --test tests/corretores.test.js`: 7 testes aprovados.
 - `node --test tests/imoveis.test.js`: 10 testes aprovados.
 - `node --test tests/clientes.test.js`: 9 testes aprovados.
-- `npm test`: 58 testes aprovados.
-- `npm run db:check`: 25 verificações aprovadas, incluindo as novas tabelas, FKs, índices
+- `node --test tests/lgpd.test.js`: 7 testes aprovados.
+- `npm test`: 71 testes aprovados.
+- `npm run db:check`: 27 verificações aprovadas, incluindo as novas tabelas, FKs, índices
   únicos e triggers de `atualizado_em`.
-- `npm run migrate:status`: migrations 001, 002, 003 e 004 aplicadas.
+- `npm run migrate:status`: migrations 001, 002, 003, 004 e 005 aplicadas.
 
 ## Limitações
 

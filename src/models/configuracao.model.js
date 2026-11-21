@@ -3,6 +3,7 @@
 const { pool, query } = require('../config/database');
 
 const CHAVES_VISIBILIDADE = ['imoveis.visibilidade', 'clientes.visibilidade'];
+const CHAVE_RETENCAO_AUDITORIA = 'auditoria.retencao_dias';
 
 async function listar(chaves = CHAVES_VISIBILIDADE) {
   const { rows } = await query(
@@ -18,6 +19,22 @@ async function listar(chaves = CHAVES_VISIBILIDADE) {
 async function obterMapa(chaves = CHAVES_VISIBILIDADE) {
   const rows = await listar(chaves);
   return new Map(rows.map((row) => [row.chave, row.valor]));
+}
+
+async function obterValor(chave, padrao = null) {
+  const mapa = await obterMapa([chave]);
+  return mapa.has(chave) ? mapa.get(chave) : padrao;
+}
+
+async function definir(chave, valor, { descricao = null, atualizadoPorUsuarioId = null } = {}) {
+  await query(
+    `UPDATE configuracoes
+        SET valor = $2::jsonb,
+            descricao = COALESCE($3, descricao),
+            atualizado_por_usuario_id = $4
+      WHERE chave = $1`,
+    [chave, JSON.stringify(valor), descricao, atualizadoPorUsuarioId]
+  );
 }
 
 async function definirVisibilidade({ imoveis, clientes, atualizadoPorUsuarioId }) {
@@ -50,7 +67,10 @@ async function definirVisibilidade({ imoveis, clientes, atualizadoPorUsuarioId }
 
 module.exports = {
   CHAVES_VISIBILIDADE,
+  CHAVE_RETENCAO_AUDITORIA,
   listar,
   obterMapa,
+  obterValor,
+  definir,
   definirVisibilidade,
 };

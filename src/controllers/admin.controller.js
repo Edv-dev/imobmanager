@@ -5,6 +5,7 @@ const permissoesService = require('../services/admin-permissoes.service');
 const configuracoesService = require('../services/configuracoes.service');
 const acessoService = require('../services/acesso.service');
 const auditoriaService = require('../services/auditoria.service');
+const lgpdService = require('../services/lgpd.service');
 const HttpError = require('../utils/http-error');
 
 function contexto(req) {
@@ -136,6 +137,40 @@ async function listarAuditoria(req, res) {
   res.json(await auditoriaService.listarHistorico(req.query));
 }
 
+async function obterRetencaoAuditoria(req, res) {
+  res.json(await auditoriaService.obterRetencao(contexto(req)));
+}
+
+async function salvarRetencaoAuditoria(req, res) {
+  res.json(await auditoriaService.salvarRetencao(req.body?.dias, contexto(req)));
+}
+
+async function executarRetencaoAuditoria(req, res) {
+  res.json(await auditoriaService.executarRetencao(contexto(req)));
+}
+
+async function obterResumoLgpd(req, res) {
+  res.json(await lgpdService.obterResumo(contexto(req)));
+}
+
+async function buscarClientesLgpd(req, res) {
+  res.json(await lgpdService.buscarClientes(req.query?.busca, contexto(req)));
+}
+
+async function exportarDadosLgpd(req, res) {
+  const arquivo = await lgpdService.exportarDadosCliente(req.params.id, contexto(req));
+
+  res.set('Content-Type', 'application/json; charset=utf-8');
+  res.set('Content-Disposition', `attachment; filename="${arquivo.nomeArquivo}"`);
+  res.send(arquivo.conteudo);
+}
+
+async function anonimizarClienteLgpd(req, res) {
+  res.json({
+    resultado: await lgpdService.anonimizarCliente(req.params.id, req.body, contexto(req)),
+  });
+}
+
 module.exports = {
   resumo,
   listarUsuarios,
@@ -156,4 +191,11 @@ module.exports = {
   salvarAcessosUsuario,
   listarRecursos,
   listarAuditoria,
+  obterRetencaoAuditoria,
+  salvarRetencaoAuditoria,
+  executarRetencaoAuditoria,
+  obterResumoLgpd,
+  buscarClientesLgpd,
+  exportarDadosLgpd,
+  anonimizarClienteLgpd,
 };

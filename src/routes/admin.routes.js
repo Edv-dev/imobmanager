@@ -123,5 +123,41 @@ router.get(
   requirePermission('auditoria.visualizar'),
   adminController.listarAuditoria
 );
+router.get(
+  '/auditoria/retencao',
+  requirePermission('auditoria.gerenciar'),
+  adminController.obterRetencaoAuditoria
+);
+router.put(
+  '/auditoria/retencao',
+  requirePermission('auditoria.gerenciar'),
+  adminController.salvarRetencaoAuditoria
+);
+router.post(
+  '/auditoria/retencao/executar',
+  requirePermission('auditoria.gerenciar'),
+  adminController.executarRetencaoAuditoria
+);
+
+router.get(
+  '/lgpd',
+  requirePermission('lgpd.gerenciar'),
+  adminController.obterResumoLgpd
+);
+router.get(
+  '/lgpd/clientes',
+  requirePermission('lgpd.gerenciar'),
+  adminController.buscarClientesLgpd
+);
+router.get(
+  '/lgpd/clientes/:id/dados',
+  requirePermission('lgpd.gerenciar'),
+  adminController.exportarDadosLgpd
+);
+router.post(
+  '/lgpd/clientes/:id/anonimizar',
+  requirePermission('lgpd.gerenciar'),
+  adminController.anonimizarClienteLgpd
+);
 
 module.exports = router;

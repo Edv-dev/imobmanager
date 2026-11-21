@@ -21,6 +21,7 @@ const ABAS = [
   { id: 'usuarios', label: 'Usuários', icon: 'users', permissao: 'usuarios.gerenciar' },
   { id: 'perfis', label: 'Perfis e permissões', icon: 'lock', permissao: 'permissoes.gerenciar' },
   { id: 'visibilidade', label: 'Visibilidade', icon: 'eye', permissao: 'configuracoes.gerenciar' },
+  { id: 'lgpd', label: 'LGPD', icon: 'shield', permissao: 'lgpd.gerenciar' },
   { id: 'auditoria', label: 'Histórico', icon: 'history', permissao: 'auditoria.visualizar' },
 ];
 
@@ -42,7 +43,20 @@ const state = {
   usuarios: null,
   filtrosUsuarios: { busca: '', perfilId: '', status: '', pagina: 1, limite: 10 },
   auditoria: null,
-  filtrosAuditoria: { busca: '', tipo: '', pagina: 1, limite: 15 },
+  filtrosAuditoria: {
+    busca: '',
+    tipo: '',
+    resultado: '',
+    entidade: '',
+    inicio: '',
+    fim: '',
+    pagina: 1,
+    limite: 15,
+  },
+  retencaoAuditoria: null,
+  lgpd: null,
+  lgpdBusca: '',
+  lgpdClientes: null,
   configuracoes: null,
   usuariosAcesso: null,
 };
@@ -62,7 +76,20 @@ function reiniciarEstado() {
   state.usuarios = null;
   state.filtrosUsuarios = { busca: '', perfilId: '', status: '', pagina: 1, limite: 10 };
   state.auditoria = null;
-  state.filtrosAuditoria = { busca: '', tipo: '', pagina: 1, limite: 15 };
+  state.filtrosAuditoria = {
+    busca: '',
+    tipo: '',
+    resultado: '',
+    entidade: '',
+    inicio: '',
+    fim: '',
+    pagina: 1,
+    limite: 15,
+  };
+  state.retencaoAuditoria = null;
+  state.lgpd = null;
+  state.lgpdBusca = '';
+  state.lgpdClientes = null;
   state.configuracoes = null;
   state.usuariosAcesso = null;
 }
@@ -73,6 +100,8 @@ function calcularPermissoes(session) {
     permissoes: possuiPermissao(session, 'permissoes.gerenciar'),
     configuracoes: possuiPermissao(session, 'configuracoes.gerenciar'),
     auditoria: possuiPermissao(session, 'auditoria.visualizar'),
+    auditoriaGerenciar: possuiPermissao(session, 'auditoria.gerenciar'),
+    lgpd: possuiPermissao(session, 'lgpd.gerenciar'),
   };
 }
 
@@ -98,6 +127,22 @@ function formatarDataHora(valor) {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(data);
+}
+
+function nomeDoArquivo(header, fallback) {
+  const match = /filename="?([^";]+)"?/i.exec(header || '');
+  return match ? match[1] : fallback;
+}
+
+function baixarArquivo(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nome;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function badge(texto, tom = 'neutral') {
@@ -858,9 +903,69 @@ function renderVisibilidade(configuracoes, usuarios) {
   `;
 }
 
+function renderRetencaoAuditoria() {
+  if (!state.perms.auditoriaGerenciar) return '';
+
+  const retencao = state.retencaoAuditoria;
+  const minimo = retencao?.minimo ?? 30;
+  const maximo = retencao?.maximo ?? 3650;
+  const expirados = retencao?.expirados ?? 0;
+
+  return `
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <h2>Retenção da auditoria</h2>
+          <p class="card__subtitle">Defina por quanto tempo os eventos são mantidos e execute o expurgo dos registros antigos.</p>
+        </div>
+      </div>
+      <div class="card__body">
+        <form class="visibility-form" data-admin-retencao>
+          <div class="form-grid">
+            <div class="field">
+              <label class="field__label" for="admin-retencao-dias">Prazo de retenção (dias)</label>
+              <input
+                class="input"
+                id="admin-retencao-dias"
+                name="dias"
+                type="number"
+                inputmode="numeric"
+                min="${minimo}"
+                max="${maximo}"
+                value="${retencao?.dias ?? 365}"
+                required
+              >
+              <p class="field__hint">Entre ${minimo} e ${maximo} dias. O prazo deve constar na política de privacidade e observar obrigações legais de guarda.</p>
+            </div>
+          </div>
+          <div class="notice notice--info">
+            ${icon('info', 18)}
+            <p>${
+              expirados === 0
+                ? 'Nenhum evento elegível para expurgo neste momento.'
+                : `${expirados} evento(s) ultrapassaram o prazo de retenção.`
+            }</p>
+          </div>
+          <div class="visibility-actions">
+            <button type="submit" class="btn btn--primary" data-form-submit>${icon(
+              'check-circle',
+              16
+            )} Salvar retenção</button>
+            <button type="button" class="btn btn--ghost" data-action="admin-executar-retencao">${icon(
+              'refresh',
+              16
+            )} Executar expurgo agora</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  `;
+}
+
 function renderAuditoria(dados) {
   const filtros = state.filtrosAuditoria;
   return `
+    ${renderRetencaoAuditoria()}
     <section class="card">
       <div class="card__header">
         <div>
@@ -892,6 +997,32 @@ function renderAuditoria(dados) {
                 )
                 .join('')}
             </select>
+          </div>
+          <div class="field toolbar__select">
+            <label class="sr-only" for="admin-auditoria-resultado">Resultado</label>
+            <select class="select" id="admin-auditoria-resultado" name="resultado">
+              <option value="">Todos os resultados</option>
+              <option value="sucesso"${filtros.resultado === 'sucesso' ? ' selected' : ''}>Sucesso</option>
+              <option value="falha"${filtros.resultado === 'falha' ? ' selected' : ''}>Falha</option>
+            </select>
+          </div>
+          <div class="field toolbar__select">
+            <label class="sr-only" for="admin-auditoria-entidade">Entidade</label>
+            <input class="input" id="admin-auditoria-entidade" name="entidade" type="search" placeholder="Entidade" value="${escapeHtml(
+              filtros.entidade
+            )}">
+          </div>
+          <div class="field toolbar__select">
+            <label class="sr-only" for="admin-auditoria-inicio">Data inicial</label>
+            <input class="input" id="admin-auditoria-inicio" name="inicio" type="date" value="${escapeHtml(
+              filtros.inicio
+            )}">
+          </div>
+          <div class="field toolbar__select">
+            <label class="sr-only" for="admin-auditoria-fim">Data final</label>
+            <input class="input" id="admin-auditoria-fim" name="fim" type="date" value="${escapeHtml(
+              filtros.fim
+            )}">
           </div>
           <div class="toolbar__actions">
             <button type="submit" class="btn btn--ghost">${icon('filter', 16)} Filtrar</button>
@@ -960,6 +1091,161 @@ function renderAuditoria(dados) {
           rotulo: 'eventos',
           acao: 'admin-pagina-auditoria',
         })}
+      </div>
+    </section>
+  `;
+}
+
+function renderLgpd(resumo) {
+  const clientes = state.lgpdClientes || [];
+  const busca = state.lgpdBusca;
+
+  return `
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <h2>Direitos dos titulares</h2>
+          <p class="card__subtitle">Localize um cliente para exportar os dados pessoais ou anonimizar o cadastro.</p>
+        </div>
+      </div>
+      <div class="card__body card__body--flush">
+        <div class="notice notice--info admin-lgpd-notice">
+          ${icon('shield', 18)}
+          <p>A exportação entrega os dados em JSON. A anonimização é irreversível, encerra o cadastro e preserva apenas o histórico mínimo de segurança.</p>
+        </div>
+        <form class="toolbar admin-toolbar" data-admin-lgpd-busca>
+          <div class="field toolbar__search">
+            <label class="sr-only" for="admin-lgpd-busca">Buscar cliente</label>
+            <div class="input-group">
+              <span class="input-group__icon">${icon('search', 18)}</span>
+              <input class="input" id="admin-lgpd-busca" name="busca" type="search" placeholder="Nome, CPF ou e-mail do cliente" value="${escapeHtml(
+                busca
+              )}">
+            </div>
+          </div>
+          <div class="toolbar__actions">
+            <button type="submit" class="btn btn--ghost">${icon('search', 16)} Buscar</button>
+          </div>
+        </form>
+        ${
+          busca.length < 2
+            ? `<div class="empty-state"><span class="empty-state__icon">${icon(
+                'search',
+                24
+              )}</span><p class="empty-state__title">Informe ao menos 2 caracteres</p><p class="empty-state__text">A busca considera nome, CPF e e-mail.</p></div>`
+            : clientes.length === 0
+              ? `<div class="empty-state"><span class="empty-state__icon">${icon(
+                  'user',
+                  24
+                )}</span><p class="empty-state__title">Nenhum cliente encontrado</p><p class="empty-state__text">Revise o termo informado.</p></div>`
+              : `<div class="table-wrap">
+                  <table class="data-table admin-audit-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Cliente</th>
+                        <th scope="col">Contato</th>
+                        <th scope="col">Situação</th>
+                        <th scope="col" class="is-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${clientes
+                        .map(
+                          (cliente) => `
+                            <tr>
+                              <td>
+                                <div class="cell-primary">
+                                  <strong>${escapeHtml(cliente.nome)}</strong>
+                                  <span>${escapeHtml(cliente.cpf || '—')}</span>
+                                </div>
+                              </td>
+                              <td>
+                                <div class="cell-primary">
+                                  <span>${escapeHtml(cliente.email || '—')}</span>
+                                  <span>${escapeHtml(cliente.telefone || '—')}</span>
+                                </div>
+                              </td>
+                              <td>${
+                                cliente.excluido
+                                  ? badge('Excluído ou anonimizado', 'warning')
+                                  : badge('Ativo', 'success')
+                              }</td>
+                              <td>
+                                <div class="cell-actions">
+                                  <button type="button" class="btn btn--ghost btn--sm" data-action="lgpd-exportar" data-id="${escapeHtml(
+                                    cliente.id
+                                  )}">${icon('download', 15)} Exportar dados</button>
+                                  <button type="button" class="btn btn--ghost btn--sm" data-action="lgpd-anonimizar" data-id="${escapeHtml(
+                                    cliente.id
+                                  )}" data-nome="${escapeHtml(cliente.nome)}">${icon(
+                                    'lock',
+                                    15
+                                  )} Anonimizar</button>
+                                </div>
+                              </td>
+                            </tr>
+                          `
+                        )
+                        .join('')}
+                    </tbody>
+                  </table>
+                </div>`
+        }
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <div>
+          <h2>Últimas operações LGPD</h2>
+          <p class="card__subtitle">Exportações e anonimizações registradas na auditoria.</p>
+        </div>
+      </div>
+      <div class="card__body card__body--flush">
+        ${
+          resumo.eventos.length === 0
+            ? `<div class="empty-state"><span class="empty-state__icon">${icon(
+                'shield',
+                24
+              )}</span><p class="empty-state__title">Nenhuma operação registrada</p><p class="empty-state__text">As solicitações de titulares aparecerão aqui.</p></div>`
+            : `<div class="table-wrap">
+                <table class="data-table admin-audit-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Data</th>
+                      <th scope="col">Operação</th>
+                      <th scope="col">Cliente</th>
+                      <th scope="col">Responsável</th>
+                      <th scope="col">Detalhes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${resumo.eventos
+                      .map((evento) => {
+                        const detalhes = textoDetalhes(evento.detalhes);
+                        return `
+                          <tr>
+                            <td><span class="admin-nowrap">${escapeHtml(formatarDataHora(evento.dataHora))}</span></td>
+                            <td><code class="admin-code">${escapeHtml(evento.tipoOperacao)}</code></td>
+                            <td>${escapeHtml(evento.registroId || '—')}</td>
+                            <td>${escapeHtml(evento.usuarioEmail || '—')}</td>
+                            <td>
+                              ${
+                                detalhes
+                                  ? `<details class="admin-details"><summary>Ver detalhes</summary><pre>${escapeHtml(
+                                      detalhes
+                                    )}</pre></details>`
+                                  : '<span class="admin-muted">—</span>'
+                              }
+                            </td>
+                          </tr>
+                        `;
+                      })
+                      .join('')}
+                  </tbody>
+                </table>
+              </div>`
+        }
       </div>
     </section>
   `;
@@ -1063,15 +1349,52 @@ async function carregarAuditoria() {
 
   if (filtros.busca) params.set('busca', filtros.busca);
   if (filtros.tipo) params.set('tipo', filtros.tipo);
+  if (filtros.resultado) params.set('resultado', filtros.resultado);
+  if (filtros.entidade) params.set('entidade', filtros.entidade);
+  if (filtros.inicio) params.set('inicio', filtros.inicio);
+  if (filtros.fim) params.set('fim', filtros.fim);
 
   try {
-    const dados = await request(`/api/administracao/auditoria?${params.toString()}`);
+    const [dados, retencao] = await Promise.all([
+      request(`/api/administracao/auditoria?${params.toString()}`),
+      state.perms.auditoriaGerenciar
+        ? request('/api/administracao/auditoria/retencao')
+        : Promise.resolve(null),
+    ]);
+
     if (!tokenValido(token, 'auditoria')) return;
     state.auditoria = dados;
+    state.retencaoAuditoria = retencao?.retencao || null;
     state.filtrosAuditoria.pagina = proximaPagina(dados);
     definirConteudo(renderAuditoria(dados));
   } catch (error) {
     if (tratarFalha(error) || !tokenValido(token, 'auditoria')) return;
+    definirConteudo(renderErro(error));
+  }
+}
+
+async function carregarLgpd() {
+  const token = iniciarCarregamento();
+  definirConteudo(renderCarregando());
+
+  const busca = state.lgpdBusca;
+  const params = new URLSearchParams({ busca });
+
+  try {
+    const [resumo, clientes] = await Promise.all([
+      request('/api/administracao/lgpd'),
+      busca.length >= 2
+        ? request(`/api/administracao/lgpd/clientes?${params.toString()}`)
+        : Promise.resolve({ clientes: [] }),
+    ]);
+
+    if (!tokenValido(token, 'lgpd')) return;
+
+    state.lgpd = resumo;
+    state.lgpdClientes = clientes.clientes;
+    definirConteudo(renderLgpd(resumo));
+  } catch (error) {
+    if (tratarFalha(error) || !tokenValido(token, 'lgpd')) return;
     definirConteudo(renderErro(error));
   }
 }
@@ -1084,6 +1407,8 @@ function carregarAba(aba = state.activeTab) {
       return carregarPerfis();
     case 'visibilidade':
       return carregarVisibilidade();
+    case 'lgpd':
+      return carregarLgpd();
     case 'auditoria':
       return carregarAuditoria();
     default:
@@ -1872,6 +2197,182 @@ async function salvarVisibilidade(form) {
   }
 }
 
+async function salvarRetencaoAuditoria(form) {
+  if (!form.reportValidity()) return;
+
+  const submit = form.querySelector('[data-form-submit]');
+  const restaurar = definirCarregando(submit);
+  const dias = Number.parseInt(new FormData(form).get('dias'), 10);
+
+  try {
+    const dados = await request('/api/administracao/auditoria/retencao', {
+      method: 'PUT',
+      body: { dias },
+    });
+    state.retencaoAuditoria = dados.retencao;
+    avisarSucesso(`O prazo de retenção foi definido em ${dados.retencao.dias} dias.`);
+    await carregarAuditoria();
+  } catch (error) {
+    avisarErro(error);
+    restaurar();
+  }
+}
+
+async function executarExpurgoAuditoria() {
+  const confirmado = await confirmDialog({
+    title: 'Executar expurgo da auditoria',
+    message:
+      'Os eventos que ultrapassaram o prazo de retenção serão removidos definitivamente. Deseja continuar?',
+    confirmLabel: 'Executar expurgo',
+    tone: 'danger',
+  });
+
+  if (!confirmado) return;
+
+  try {
+    const dados = await request('/api/administracao/auditoria/retencao/executar', {
+      method: 'POST',
+    });
+    avisarSucesso(
+      `${dados.removidos} evento(s) com mais de ${dados.dias} dia(s) foram removidos.`
+    );
+    await carregarAuditoria();
+  } catch (error) {
+    avisarErro(error);
+  }
+}
+
+async function exportarDadosTitular(clienteId, botao) {
+  const restaurar = definirCarregando(botao, 'Exportando…');
+
+  try {
+    const resposta = await fetch(
+      `/api/administracao/lgpd/clientes/${encodeURIComponent(clienteId)}/dados`,
+      {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      }
+    );
+
+    if (resposta.status === 401) {
+      window.location.replace('/?sessao=expirada');
+      return;
+    }
+
+    if (!resposta.ok) {
+      let dados = null;
+
+      try {
+        dados = await resposta.json();
+      } catch {
+        dados = null;
+      }
+
+      throw new Error(dados?.error?.message || 'Não foi possível exportar os dados do titular.');
+    }
+
+    const blob = await resposta.blob();
+    const nome = nomeDoArquivo(
+      resposta.headers.get('Content-Disposition'),
+      `lgpd-cliente-${clienteId}.json`
+    );
+
+    baixarArquivo(blob, nome);
+    showToast({
+      type: 'success',
+      title: 'Exportação concluída',
+      message: `O arquivo ${nome} foi gerado.`,
+    });
+  } catch (error) {
+    avisarErro(error);
+  } finally {
+    restaurar();
+  }
+}
+
+function abrirAnonimizacao(clienteId) {
+  const cliente = state.lgpdClientes?.find(
+    (item) => String(item.id) === String(clienteId)
+  );
+
+  if (!cliente) return;
+
+  const formId = `admin-anonimizar-form-${(sequenciaFormulario += 1)}`;
+  const modal = openModal({
+    title: 'Anonimizar dados do cliente',
+    description: `${cliente.nome} · CPF ${cliente.cpf}`,
+    size: 'md',
+    body: `
+      <form id="${formId}" data-admin-anonimizar-form novalidate>
+        <div class="notice notice--warning">
+          ${icon('alert-circle', 18)}
+          <p>A anonimização é irreversível. Os dados de contato serão removidos, o cadastro será encerrado e o histórico de atendimento preservará apenas o mínimo necessário.</p>
+        </div>
+        <div class="field">
+          <label class="field__label" for="admin-anonimizar-motivo">Motivo da solicitação <span class="field__required" aria-hidden="true">*</span></label>
+          <textarea
+            class="textarea"
+            id="admin-anonimizar-motivo"
+            name="motivo"
+            rows="4"
+            minlength="10"
+            maxlength="300"
+            required
+            placeholder="Ex.: solicitação de eliminação recebida por e-mail em 20/11/2026."
+          ></textarea>
+          <p class="field__hint">Entre 10 e 300 caracteres. O motivo é registrado na auditoria; não inclua dados sensíveis.</p>
+        </div>
+        <label class="checkbox field--full">
+          <input type="checkbox" name="confirmar" required>
+          <span>Confirmo que a solicitação do titular foi verificada e que desejo anonimizar os dados.</span>
+        </label>
+        <div class="form-alert" data-form-error hidden></div>
+      </form>
+    `,
+    footer: `
+      <button type="button" class="btn btn--ghost" data-modal-close>Cancelar</button>
+      <button type="submit" form="${formId}" class="btn btn--danger" data-form-submit>Anonimizar dados</button>
+    `,
+  });
+
+  const form = modal.element.querySelector(`#${formId}`);
+  const submit = modal.element.querySelector('[data-form-submit]');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    if (!form.reportValidity()) return;
+
+    esconderErroFormulario(modal);
+    const dados = new FormData(form);
+    const restaurar = definirCarregando(submit, 'Anonimizando…');
+
+    try {
+      const resposta = await request(
+        `/api/administracao/lgpd/clientes/${cliente.id}/anonimizar`,
+        {
+          method: 'POST',
+          body: {
+            motivo: String(dados.get('motivo') || '').trim(),
+            confirmar: dados.get('confirmar') === 'on',
+          },
+        }
+      );
+
+      modal.close('submit');
+      avisarSucesso(
+        `Anonimização concluída. Protocolo ${resposta.resultado.protocolo}.`
+      );
+
+      if (state.activeTab === 'lgpd') await carregarLgpd();
+    } catch (error) {
+      if (tratarFalha(error)) return;
+      mostrarErroFormulario(modal, error.message);
+      restaurar();
+    }
+  });
+}
+
 function usuarioPorId(id) {
   return state.usuarios?.usuarios.find((usuario) => String(usuario.id) === String(id)) || null;
 }
@@ -1930,6 +2431,15 @@ async function tratarClique(event) {
       }
       break;
     }
+    case 'admin-executar-retencao':
+      executarExpurgoAuditoria();
+      break;
+    case 'lgpd-exportar':
+      exportarDadosTitular(id, botao);
+      break;
+    case 'lgpd-anonimizar':
+      abrirAnonimizacao(id);
+      break;
     default:
       break;
   }
@@ -1959,9 +2469,29 @@ async function tratarEnvio(event) {
       ...state.filtrosAuditoria,
       busca: String(dados.get('busca') || '').trim(),
       tipo: String(dados.get('tipo') || ''),
+      resultado: String(dados.get('resultado') || ''),
+      entidade: String(dados.get('entidade') || '').trim(),
+      inicio: String(dados.get('inicio') || ''),
+      fim: String(dados.get('fim') || ''),
       pagina: 1,
     };
     await carregarAuditoria();
+    return;
+  }
+
+  const buscaLgpd = event.target.closest('[data-admin-lgpd-busca]');
+  if (buscaLgpd) {
+    event.preventDefault();
+    const dados = new FormData(buscaLgpd);
+    state.lgpdBusca = String(dados.get('busca') || '').trim();
+    await carregarLgpd();
+    return;
+  }
+
+  const retencao = event.target.closest('[data-admin-retencao]');
+  if (retencao) {
+    event.preventDefault();
+    await salvarRetencaoAuditoria(retencao);
     return;
   }
 

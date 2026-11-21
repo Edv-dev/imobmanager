@@ -9,6 +9,7 @@ const crypto = require('node:crypto');
 
 const createApp = require('../src/app');
 const { pool, closePool } = require('../src/config/database');
+const { expurgarAuditoriaTeste } = require('./helpers/auditoria');
 const { hashPassword } = require('../src/utils/password');
 const { requireAuth, requirePermission } = require('../src/middlewares/auth');
 
@@ -112,19 +113,16 @@ after(async () => {
   const usuarios = [usuarioAdmin, usuarioCorretor, usuarioBloqueado].filter(Boolean);
 
   for (const usuario of usuarios) {
-    await pool.query(
-      'DELETE FROM auditoria WHERE usuario_id = $1 OR usuario_email = $2',
-      [usuario.id, usuario.email]
-    );
+    await expurgarAuditoriaTeste('usuario_id = $1 OR usuario_email = $2', [
+      usuario.id,
+      usuario.email,
+    ]);
     await pool.query('DELETE FROM usuarios WHERE id = $1', [usuario.id]);
   }
 
-  await pool.query(
-    `DELETE FROM auditoria
-      WHERE usuario_email LIKE $1
-         OR detalhes::text LIKE $1`,
-    [`%${TEST_PREFIX}%`]
-  );
+  await expurgarAuditoriaTeste('usuario_email LIKE $1 OR detalhes::text LIKE $1', [
+    `%${TEST_PREFIX}%`,
+  ]);
 
   await new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
