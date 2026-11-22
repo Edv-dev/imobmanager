@@ -153,6 +153,33 @@ test('tela administrativa utiliza a API real e oferece as áreas de gestão', as
   assert.match(css, /\.admin-loading/);
 });
 
+test('páginas e CSS mantêm viewport e breakpoints responsivos', async () => {
+  for (const pagina of ['/', '/recuperar-senha.html']) {
+    const html = await (await fetch(`${baseUrl}${pagina}`)).text();
+    assert.match(html, /name="viewport"/, pagina);
+    assert.match(html, /width=device-width/, pagina);
+  }
+
+  const appHtml = await fs.readFile(
+    path.join(__dirname, '..', 'public', 'app.html'),
+    'utf8'
+  );
+  assert.match(appHtml, /name="viewport"/);
+  assert.match(appHtml, /width=device-width/);
+
+  const layout = await (await fetch(`${baseUrl}/css/layout.css`)).text();
+  assert.match(layout, /@media \(max-width: 1024px\)/);
+  assert.match(layout, /@media \(max-width: 720px\)/);
+  assert.match(layout, /@media \(max-width: 560px\)/);
+
+  const pages = await (await fetch(`${baseUrl}/css/pages.css`)).text();
+  assert.match(pages, /@media \(max-width: 760px\)/);
+  assert.match(pages, /@media \(max-width: 640px\)/);
+
+  const components = await (await fetch(`${baseUrl}/css/components.css`)).text();
+  assert.match(components, /@media \(max-width: 640px\)/);
+});
+
 test('favicon da identidade visual é servido como SVG', async () => {
   const response = await fetch(`${baseUrl}/assets/favicon.svg`);
   const svg = await response.text();

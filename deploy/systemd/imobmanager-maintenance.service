@@ -1,0 +1,21 @@
+[Unit]
+Description=Manutenção e retenção de dados do ImobManager
+Documentation=file:///opt/imobmanager/docs/operacao.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=imobmanager
+Group=imobmanager
+WorkingDirectory=/opt/imobmanager
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node scripts/maintenance.js
+Nice=10
+IOSchedulingClass=idle
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

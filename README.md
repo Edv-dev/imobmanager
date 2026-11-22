@@ -2,7 +2,7 @@
 
 Sistema web de gestão para uma única imobiliária, com arquitetura cliente-servidor e API REST.
 
-**Etapa atual: 10 — Auditoria e LGPD.**
+**Versão 1.0.0 — Testes e implantação (etapa 11).**
 
 ## Visão geral
 
@@ -25,6 +25,9 @@ Sistema web de gestão para uma única imobiliária, com arquitetura cliente-ser
   interesse, atendimentos, histórico, visibilidade e exclusão lógica.
 - Dashboard e relatórios funcionais: indicadores reais, gráficos, atividade recente,
   histórico de atendimentos com filtros e exportação em CSV e PDF.
+- Preparado para produção Linux: validação de ambiente, proxy reverso com HTTPS,
+  cookie seguro, HSTS, trust proxy configurável, systemd, Nginx, backup diário do banco
+  e uploads, manutenção de sessões e retenção.
 - As telas de negócio usam dados reais da API; nenhum registro fictício é apresentado
   como informação do sistema.
 
@@ -33,7 +36,11 @@ Sistema web de gestão para uma única imobiliária, com arquitetura cliente-ser
 ```text
 Navegador (HTML/CSS/JS)
         |
-        | HTTP/JSON + cookie de sessão HttpOnly
+        | HTTPS/JSON + cookie de sessão HttpOnly
+        v
+Nginx (TLS, arquivos estáticos e proxy reverso)
+        |
+        | HTTP em 127.0.0.1:3000
         v
 Express (src/app.js)
   -> Helmet, limite de corpo e cookie-parser
@@ -57,6 +64,8 @@ Princípios adotados:
   valida a sessão, o CSRF e as permissões em todas as operações.
 - Variáveis de ambiente para toda configuração sensível.
 - Erros padronizados sem stack trace em produção e sem revelar se uma conta existe.
+- Em produção, o Node escuta em `127.0.0.1`, confia em uma camada de proxy (`TRUST_PROXY=1`)
+  e valida a origem canônica configurada em `APP_URL`.
 - Eventos de login, bloqueio, logout, recuperação de senha, negação de acesso,
   operações administrativas e solicitações LGPD registrados em `auditoria`, sem senhas
   ou tokens.
@@ -69,6 +78,10 @@ imobManager/
 ├── .gitignore            # arquivos que não entram no Git
 ├── package.json          # metadados e scripts do projeto
 ├── README.md
+├── deploy/
+│   ├── env.production.example  # modelo de ambiente de produção
+│   ├── nginx-imobmanager.conf  # proxy reverso e preparação para TLS
+│   └── systemd/          # serviço, backup e manutenção com timers
 ├── docs/
 │   ├── administracao.md  # usuários, permissões, visibilidade e auditoria
 │   ├── lgpd-auditoria.md # retenção, imutabilidade e direitos dos titulares
@@ -78,7 +91,12 @@ imobManager/
 │   ├── clientes.md       # CRUD, vínculos, atendimentos, visibilidade e auditoria
 │   ├── dashboard-relatorios.md # indicadores, relatórios e exportações
 │   ├── banco-de-dados.md # diagrama ER, relacionamentos e regras de dados
-│   └── interface.md      # design system, telas, componentes e responsividade
+│   ├── interface.md      # design system, telas, componentes e responsividade
+│   ├── implantacao.md    # produção Linux, Nginx, HTTPS, systemd e TLS
+│   ├── operacao.md       # backup, restauração, manutenção e incidentes
+│   ├── testes.md         # estratégia, cobertura e checklist de validação
+│   ├── guia-administracao.md # rotinas do administrador
+│   └── guia-utilizacao.md    # guia do usuário final
 ├── migrations/
 │   ├── 001_initial_schema.up.sql       # schema de negócio e seeds
 │   ├── 001_initial_schema.down.sql
@@ -96,6 +114,8 @@ imobManager/
 │   ├── db-integrity-check.js # testes de integridade com rollback
 │   ├── migrate.js        # runner de migrations (up/down/status)
 │   ├── purge-audit.js    # expurgo de auditoria por retenção (npm run audit:purge)
+│   ├── maintenance.js    # sessões, recuperações e retenção (npm run maintenance)
+│   ├── backup.js         # dump do banco e uploads (npm run backup)
 │   └── setup-database.sh # cria usuário e banco dedicados
 ├── src/
 │   ├── app.js            # Helmet, cookies, sessão, CSRF, estáticos e rotas
@@ -120,6 +140,7 @@ imobManager/
 │   │   ├── atendimento.service.js
 │   │   ├── auditoria.service.js
 │   │   ├── auth.service.js
+│   │   ├── backup.service.js
 │   │   ├── cliente.service.js
 │   │   ├── configuracoes.service.js
 │   │   ├── corretor.service.js
@@ -128,6 +149,7 @@ imobManager/
 │   │   ├── imagem.service.js
 │   │   ├── imovel.service.js
 │   │   ├── lgpd.service.js
+│   │   ├── maintenance.service.js
 │   │   └── relatorio.service.js
 │   ├── models/
 │   │   ├── acesso.model.js
@@ -194,7 +216,11 @@ imobManager/
     ├── lgpd.test.js      # auditoria, retenção, exportação e anonimização LGPD
     ├── relatorios.test.js # dashboard, relatórios, atendimentos e exportações
     ├── database.test.js  # indisponibilidade do banco
-    └── ui.test.js        # login, área protegida, administração, CSS e módulos JS
+    ├── ui.test.js        # login, área protegida, administração, CSS e responsividade
+    ├── production.test.js # HSTS, no-store, origem canônica, trust proxy e env
+    ├── maintenance.test.js # limpeza de sessões, recuperações e auditoria
+    ├── backup.test.js    # dump, uploads, retenção e verificação com pg_restore
+    └── helpers/          # suporte comum (expurgo de auditoria de teste)
 ```
 
 ## Requisitos
@@ -202,7 +228,10 @@ imobManager/
 - Node.js 20 ou superior (validado com Node.js 22).
 - PostgreSQL 14 ou superior (validado com PostgreSQL 18).
 - Acesso ao `psql` ou a um cliente PostgreSQL.
-- Servidor SMTP opcional para envio real dos e-mails de recuperação de senha.
+- Servidor SMTP opcional em desenvolvimento e obrigatório para recuperação de senha em
+  produção.
+- Em produção: Linux, Nginx, Certbot, `pg_dump`/`pg_restore` e `tar`; veja
+  [docs/implantacao.md](docs/implantacao.md).
 
 ## Instalação
 
@@ -285,7 +314,28 @@ O prazo padrão é de 365 dias e pode ser alterado na aba Histórico por quem po
 
 ```bash
 npm run audit:purge   # remove eventos além do prazo configurado
+npm run maintenance   # limpa sessões/recuperações antigas e aplica a retenção
+npm run backup        # gera dump do banco e arquivo dos uploads
 ```
+
+O backup usa `pg_dump`/`pg_restore` e `tar`; o destino padrão é
+`/var/backups/imobmanager`, com retenção de 30 dias. Veja
+[docs/operacao.md](docs/operacao.md) para restauração e rotação externa.
+
+## Implantação em produção
+
+O passo a passo completo (usuário de sistema, PostgreSQL, `.env` de produção, migrations,
+systemd, Nginx, Certbot, firewall, timers e verificação final) está em
+[docs/implantacao.md](docs/implantacao.md).
+
+```bash
+sudo cp deploy/systemd/imobmanager.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now imobmanager
+```
+
+Em produção, use `HOST=127.0.0.1`, `TRUST_PROXY=1`, `APP_URL` com HTTPS e mantenha o Node
+atrás do Nginx. O `SESSION_SECRET` deve ter pelo menos 32 caracteres.
 
 ## Modelo de dados
 
@@ -321,8 +371,9 @@ Detalhes, diagrama ER e precedência de permissões: [docs/banco-de-dados.md](do
 | -------------------------- | ------------- | ---------------------------------------------------------------- |
 | `NODE_ENV`                 | `development` | Ambiente (`development`, `test`, `production`).                  |
 | `PORT`                     | `3000`        | Porta HTTP do servidor.                                          |
-| `HOST`                     | `0.0.0.0`     | Endereço de escuta.                                              |
-| `APP_URL`                  | `http://localhost:3000` | URL pública usada nos links de recuperação.          |
+| `HOST`                     | `0.0.0.0`     | Endereço de escuta (`127.0.0.1` em produção).                    |
+| `APP_URL`                  | `http://localhost:3000` | URL pública canônica; HTTPS e igual à origem em produção. |
+| `TRUST_PROXY`              | `false`       | Confiança no proxy (`1`, `loopback`, IPs ou `false`).            |
 | `SESSION_SECRET`           | *(vazio)*     | Segredo para derivação de CSRF; obrigatório em produção.         |
 | `SESSION_TTL_MINUTES`      | `480`         | Duração da sessão normal (8 horas).                              |
 | `SESSION_REMEMBER_DAYS`    | `7`           | Duração ao marcar "Lembrar de mim" (7 dias).                     |
@@ -348,15 +399,22 @@ Em desenvolvimento sem SMTP configurado, o link de recuperação é exibido apen
 do servidor. Em produção sem SMTP, nenhum token é exposto e um aviso é registrado; configure
 o SMTP para que a recuperação por e-mail funcione.
 
+Em produção, `APP_URL` precisa ser `https://SEU_DOMINIO` e corresponder exatamente à origem
+acessada pelo navegador; requisições de escrita de outra origem são rejeitadas. Use
+`TRUST_PROXY=1` quando houver exatamente uma camada de proxy reverso confiável (Nginx).
+
 ## Execução
 
 ```bash
 # desenvolvimento (reinicia automaticamente ao salvar)
 npm run dev
 
-# produção
+# produção (preferencialmente via systemd, com Nginx e HTTPS)
 npm start
 ```
+
+Não execute a aplicação como `root` em produção. Use o usuário `imobmanager`, mantenha
+o Node atrás do Nginx e siga [docs/implantacao.md](docs/implantacao.md).
 
 Acesse:
 
@@ -570,32 +628,26 @@ e `"checks.database.status": "down"`, sem expor detalhes internos.
 ## Testes
 
 ```bash
-npm test          # testes de API, autenticação, banco e interface
-npm run db:ping   # teste de conectividade com o PostgreSQL
-npm run db:check  # testes de integridade do schema (rollback ao final)
+npm test           # suíte completa (Node.js test runner)
+npm run db:ping    # teste de conectividade com o PostgreSQL
+npm run db:check   # integridade do schema (rollback ao final)
+npm run maintenance
+npm run backup     # requer pg_dump e tar
 ```
 
-Os testes usam o test runner nativo do Node.js (`node --test`). A suíte `tests/auth.test.js`
-cria usuários temporários no banco configurado, valida login, sessão, CSRF, origem,
-bloqueio, recuperação, revogação e cabeçalhos de segurança, e remove os dados ao final.
-A suíte `tests/admin.test.js` valida permissões, CSRF, CRUD de usuários e corretores,
-status, redefinição de senha, exceções individuais, visibilidade, isolamento entre
-corretores e auditoria, restaurando o estado do banco. A suíte `tests/corretores.test.js`
-cobre CRUD, validações, duplicidades, sincronização de conta e sessões, autorização,
-visibilidade dos vínculos e auditoria. A suíte `tests/imoveis.test.js` cobre CRUD,
-filtros, validações, código único, vínculos, autorização, visibilidade, imagens
-(envio, download, ordenação, principal e remoção), auditoria e a tela conectada à API.
-A suíte `tests/clientes.test.js` cobre CRUD, validações, CPF único, filtros, vínculos de
-corretores e imóveis, atendimentos, visibilidade, permissões, auditoria e a tela conectada
-à API. A suíte `tests/relatorios.test.js` cobre dashboard, os cinco relatórios, filtros e
-datas inválidas, visibilidade vinculada, permissões de consulta/exportação, exportação CSV
-e PDF e a listagem de atendimentos. A suíte `tests/lgpd.test.js` cobre permissões de
-auditoria e LGPD, CSRF/origem inválidos, exportação de dados, anonimização e redação de
-PII, retenção, expurgo e filtros da consulta. A suíte `tests/ui.test.js` verifica login,
-proteção de `/app.html`, recuperação, área administrativa, folhas de estilo, módulos
-JavaScript e favicon. O `db:check` valida
-as 19 tabelas, FKs, índices, seeds, triggers e regras de unicidade, exclusão lógica e
-cascata; todos os dados de teste são revertidos por rollback.
+A suíte usa `node --test --test-concurrency=1` e cobre API, autenticação, sessão/CSRF,
+permissões, isolamento entre corretores, CRUD dos módulos, filtros, uploads, relatórios,
+auditoria/LGPD, interface, produção, manutenção e backup. Os testes usam PostgreSQL real,
+criam dados com prefixo único e os removem ao final. Para um banco dedicado:
+
+```bash
+DB_NAME=imobmanager_test npm run migrate:up
+DB_NAME=imobmanager_test npm test
+```
+
+Resultado de referência (20/11/2026): **79 testes aprovados**, `db:check` com **27
+verificações aprovadas** e **5 migrations aplicadas**. Detalhes, cobertura por arquivo e
+checklist manual de responsividade/acessibilidade: [docs/testes.md](docs/testes.md).
 
 ## Segurança aplicada
 

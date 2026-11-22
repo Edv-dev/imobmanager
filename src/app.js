@@ -4,6 +4,7 @@ const path = require('node:path');
 const express = require('express');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
+const config = require('./config/env');
 const routes = require('./routes');
 const notFound = require('./middlewares/notFound');
 const errorHandler = require('./middlewares/errorHandler');
@@ -19,7 +20,7 @@ function createApp() {
   const app = express();
 
   app.disable('x-powered-by');
-  app.set('trust proxy', false);
+  app.set('trust proxy', config.server.trustProxy);
 
   app.use(helmet(securityHeaders()));
   app.use(express.json({ limit: '1mb' }));

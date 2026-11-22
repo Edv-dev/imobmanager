@@ -1,0 +1,24 @@
+[Unit]
+Description=Backup do banco e uploads do ImobManager
+Documentation=file:///opt/imobmanager/docs/operacao.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=imobmanager
+Group=imobmanager
+WorkingDirectory=/opt/imobmanager
+Environment=NODE_ENV=production
+Environment=BACKUP_DIR=/var/backups/imobmanager
+Environment=BACKUP_RETENTION_DAYS=30
+ExecStart=/usr/bin/node scripts/backup.js
+Nice=10
+IOSchedulingClass=idle
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/imobmanager

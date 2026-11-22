@@ -1,6 +1,6 @@
 {
   "name": "imobmanager",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Sistema web de gestão para uma única imobiliária",
   "private": true,
   "main": "src/server.js",
@@ -20,7 +20,9 @@
     "migrate:down": "node scripts/migrate.js down",
     "migrate:status": "node scripts/migrate.js status",
     "admin:create": "node scripts/create-admin.js",
-    "audit:purge": "node scripts/purge-audit.js"
+    "audit:purge": "node scripts/purge-audit.js",
+    "maintenance": "node scripts/maintenance.js",
+    "backup": "node scripts/backup.js"
   },
   "keywords": [
     "imobiliaria",

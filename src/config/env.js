@@ -17,6 +17,44 @@ function toBool(value, fallback = false) {
   return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
 }
 
+function toTrustProxy(value) {
+  if (value === undefined || value === null || value === '') return false;
+
+  const normalizado = String(value).trim().toLowerCase();
+
+  if (['false', 'off', 'no', '0'].includes(normalizado)) return false;
+  if (['true', 'on', 'yes'].includes(normalizado)) return true;
+  if (/^\d+$/.test(normalizado)) return Number.parseInt(normalizado, 10);
+
+  return normalizado;
+}
+
+function validarAppUrl(url) {
+  let parsed;
+
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('Configuração inválida: APP_URL deve ser uma URL absoluta.');
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('Configuração inválida: APP_URL deve usar http ou https.');
+  }
+
+  if (parsed.username || parsed.password) {
+    throw new Error('Configuração inválida: APP_URL não deve conter credenciais.');
+  }
+
+  if (parsed.pathname !== '/' || parsed.search || parsed.hash) {
+    throw new Error('Configuração inválida: APP_URL deve apontar para a raiz do site.');
+  }
+
+  if (config.isProduction && parsed.protocol !== 'https:') {
+    throw new Error('Configuração inválida: APP_URL deve usar https em produção.');
+  }
+}
+
 const nodeEnv = process.env.NODE_ENV || 'development';
 const databaseUrl = process.env.DATABASE_URL || '';
 const port = toInt(process.env.PORT, 3000);
@@ -32,6 +70,7 @@ const config = {
   server: {
     port,
     host,
+    trustProxy: toTrustProxy(process.env.TRUST_PROXY),
   },
   app: {
     url: (process.env.APP_URL || `http://localhost:${port}`).replace(/\/$/, ''),
@@ -82,6 +121,8 @@ function assertConfig() {
   if (!host) {
     throw new Error('Configuração inválida: HOST não pode ser vazio.');
   }
+
+  validarAppUrl(config.app.url);
 
   if (!config.session.secret) {
     if (config.isProduction) {

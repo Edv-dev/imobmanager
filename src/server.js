@@ -8,9 +8,18 @@ const app = createApp();
 
 const server = app.listen(config.server.port, config.server.host, () => {
   console.log(
-    `[server] ImobManager API ouvindo em http://${config.server.host}:${config.server.port} (${config.env})`
+    `[server] ImobManager API ouvindo em http://${config.server.host}:${config.server.port} (${config.env}); URL pública: ${config.app.url}`
   );
+
+  if (config.isProduction && !config.smtp.host) {
+    console.warn(
+      '[server] SMTP não configurado; a recuperação de senha não enviará e-mails em produção.'
+    );
+  }
 });
+
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
 
 server.on('error', (error) => {
   if (error.code === 'EADDRINUSE') {
@@ -49,3 +58,15 @@ async function shutdown(signal) {
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+process.on('unhandledRejection', (reason) => {
+  console.error(
+    '[server] Promise rejeitada sem tratamento:',
+    reason instanceof Error ? reason.message : reason
+  );
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[server] Exceção não capturada:', error);
+  shutdown('uncaughtException');
+});

@@ -14,6 +14,11 @@ const { apiLimiter } = require('../middlewares/rateLimiters');
 
 const router = Router();
 
+router.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
 router.use(apiLimiter);
 router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);

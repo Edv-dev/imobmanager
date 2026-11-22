@@ -5,10 +5,7 @@ const auditoriaService = require('../services/auditoria.service');
 const HttpError = require('../utils/http-error');
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-
-function origemEsperada(req) {
-  return `${req.protocol}://${req.get('host')}`;
-}
+const ORIGEM_CANONICA = new URL(config.app.url).origin;
 
 async function negarOrigem(req, next) {
   await auditoriaService.registrarOrigemInvalida(req).catch(() => {});
@@ -40,12 +37,7 @@ async function originCheck(req, res, next) {
       return negarOrigem(req, next);
     }
 
-    const esperada = new URL(origemEsperada(req));
-
-    if (
-      origemRecebida.protocol !== esperada.protocol ||
-      origemRecebida.host !== esperada.host
-    ) {
+    if (origemRecebida.origin !== ORIGEM_CANONICA) {
       return negarOrigem(req, next);
     }
   }
@@ -72,6 +64,11 @@ function securityHeaders() {
     },
     crossOriginEmbedderPolicy: false,
     referrerPolicy: { policy: 'no-referrer' },
+    strictTransportSecurity: {
+      maxAge: 15552000,
+      includeSubDomains: false,
+      preload: false,
+    },
   };
 }
 
