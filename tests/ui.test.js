@@ -52,6 +52,55 @@ test('área interna não é servida sem sessão autenticada', async () => {
   assert.equal(response.headers.get('location'), '/');
 });
 
+test('páginas HTML não são armazenadas no cache do navegador', async () => {
+  for (const pagina of ['/', '/index.html', '/recuperar-senha.html']) {
+    const response = await fetch(`${baseUrl}${pagina}`);
+
+    assert.equal(response.status, 200, pagina);
+    assert.equal(response.headers.get('cache-control'), 'no-store', pagina);
+  }
+
+  const protegida = await fetch(`${baseUrl}/app.html`, { redirect: 'manual' });
+  assert.equal(protegida.headers.get('cache-control'), 'no-store');
+
+  const css = await fetch(`${baseUrl}/css/base.css`);
+  assert.notEqual(css.headers.get('cache-control'), 'no-store');
+});
+
+test('restauração pelo cache do navegador revalida a sessão', async () => {
+  const app = await (await fetch(`${baseUrl}/js/app.js`)).text();
+  assert.match(app, /addEventListener\('pageshow'/);
+  assert.match(app, /event\.persisted/);
+  assert.match(app, /carregarSessao\(\)/);
+  assert.match(app, /sessao=expirada/);
+
+  const login = await (await fetch(`${baseUrl}/js/login.js`)).text();
+  assert.match(login, /addEventListener\('pageshow'/);
+  assert.match(login, /passwordInput\.value = ''/);
+});
+
+test('sair do app encerra a sessão e exige novo login', async () => {
+  const app = await (await fetch(`${baseUrl}/js/app.js`)).text();
+  assert.match(app, /addEventListener\('pagehide'/);
+  assert.match(app, /sinalizarSaidaKeepalive/);
+  assert.match(app, /saidaPendente/);
+  assert.match(app, /recarregouPagina/);
+  assert.match(app, /performance\.getEntriesByType/);
+  assert.match(app, /retomarSessaoRemota/);
+  assert.match(app, /CHAVE_SAIDA/);
+  assert.match(app, /sessao=encerrada/);
+
+  const api = await (await fetch(`${baseUrl}/js/core/api.js`)).text();
+  assert.match(api, /\/api\/auth\/leave/);
+  assert.match(api, /keepalive: true/);
+  assert.match(api, /X-CSRF-Token/);
+
+  const login = await (await fetch(`${baseUrl}/js/login.js`)).text();
+  assert.match(login, /sessionStorage\.removeItem\(CHAVE_SAIDA\)/);
+  assert.match(login, /motivoSessao === 'encerrada'/);
+  assert.equal(login.includes("window.location.replace('/app.html')"), false);
+});
+
 test('shell autenticado mantém menu, outlet SPA e região de avisos', async () => {
   const html = await fs.readFile(
     path.join(__dirname, '..', 'public', 'app.html'),

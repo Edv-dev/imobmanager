@@ -1,4 +1,5 @@
 import { getHealth, request } from './core/api.js';
+import { CHAVE_SAIDA } from './core/session.js';
 import { icon } from './components/icons.js';
 import { showToast } from './components/toast.js';
 
@@ -62,6 +63,7 @@ form.addEventListener('submit', async (event) => {
       body: { email, password, lembrar },
     });
 
+    sessionStorage.removeItem(CHAVE_SAIDA);
     window.location.assign('/app.html');
   } catch (error) {
     const mensagem =
@@ -78,11 +80,16 @@ form.addEventListener('submit', async (event) => {
 
 const parametros = new URLSearchParams(window.location.search);
 
-if (parametros.get('sessao') === 'expirada') {
+const motivoSessao = parametros.get('sessao');
+
+if (motivoSessao === 'expirada' || motivoSessao === 'encerrada') {
   showToast({
     type: 'warning',
     title: 'Sessão encerrada',
-    message: 'Sua sessão expirou. Entre novamente para continuar.',
+    message:
+      motivoSessao === 'encerrada'
+        ? 'Sua sessão foi encerrada ao sair do sistema. Entre novamente para continuar.'
+        : 'Sua sessão expirou. Entre novamente para continuar.',
     timeout: 7000,
   });
 }
@@ -99,6 +106,13 @@ if (parametros.get('senha') === 'redefinida') {
 if (parametros.has('sessao') || parametros.has('senha')) {
   window.history.replaceState({}, '', window.location.pathname);
 }
+
+window.addEventListener('pageshow', (event) => {
+  if (!event.persisted) return;
+
+  passwordInput.value = '';
+  limparErro();
+});
 
 async function updateServiceStatus() {
   const container = document.getElementById('login-status');

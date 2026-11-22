@@ -191,7 +191,7 @@ erDiagram
 | `atendimentos`       | Histórico de atendimentos, com cliente, corretor e imóvel opcional.        |
 | `configuracoes`      | Configurações chave/valor em JSONB.                                        |
 | `auditoria`          | Eventos de segurança e operação, sem dados sensíveis desnecessários.       |
-| `sessoes`            | Sessões autenticadas; armazena apenas o hash do token.                     |
+| `sessoes`            | Sessões autenticadas; hash do token, expiração, revogação e saída do app.   |
 | `recuperacoes_senha` | Tokens de recuperação de senha com uso único e validade curta.             |
 | `acessos_imoveis`    | Exceções individuais de acesso a imóveis (permitir/negar).                 |
 | `acessos_clientes`   | Exceções individuais de acesso a clientes (permitir/negar).                |

@@ -30,6 +30,14 @@ function createApp() {
   app.use(authenticateSession);
   app.use(csrfProtection);
 
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && (req.path === '/' || req.path.endsWith('.html'))) {
+      res.set('Cache-Control', 'no-store');
+    }
+
+    next();
+  });
+
   app.get('/', redirectIfAuthenticated);
   app.get('/index.html', redirectIfAuthenticated);
   app.get('/app.html', requireAuthPage, (req, res) => {

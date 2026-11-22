@@ -38,7 +38,7 @@ DB_NAME=imobmanager_test npm test
 | Arquivo | Foco | Testes |
 | --- | --- | ---: |
 | `tests/api.test.js` | healthcheck, 404, JSON inválido, estáticos e ausência de vazamentos | 5 |
-| `tests/auth.test.js` | login/logout, sessão, CSRF, origem, bloqueio, recuperação, headers e middlewares | 9 |
+| `tests/auth.test.js` | login/logout, saída/retomada, sessão, CSRF, origem, bloqueio, recuperação, headers e middlewares | 10 |
 | `tests/admin.test.js` | usuários, corretores, permissões, exceções, visibilidade e auditoria | 8 |
 | `tests/corretores.test.js` | CRUD, status, conta/sessões, autorização e visibilidade | 7 |
 | `tests/imoveis.test.js` | CRUD, filtros, imagens, arquivos, visibilidade e auditoria | 10 |
@@ -46,7 +46,7 @@ DB_NAME=imobmanager_test npm test
 | `tests/relatorios.test.js` | dashboard, relatórios, filtros, atendimentos e exportações CSV/PDF | 6 |
 | `tests/lgpd.test.js` | permissões, CSRF, exportação, anonimização, redação, retenção e filtros | 7 |
 | `tests/database.test.js` | indisponibilidade do banco sem exceção | 1 |
-| `tests/ui.test.js` | login, shell, recuperação, módulos, CSS, viewport, breakpoints e favicon | 10 |
+| `tests/ui.test.js` | login, shell, recuperação, módulos, CSS, viewport, breakpoints, cache, saída do app e favicon | 13 |
 | `tests/production.test.js` | HSTS/no-store/CSP, origem canônica, trust proxy e validação de env | 4 |
 | `tests/maintenance.test.js` | limpeza de sessões/recuperações antigas e auditoria da rotina | 1 |
 | `tests/backup.test.js` | dump válido, uploads, `pg_restore --list` e retenção | 2 |
@@ -72,7 +72,9 @@ transacional de manutenção exigida pelo trigger de imutabilidade.
   `APP_URL` canônica/HTTPS e validação de segredos.
 - **Operação**: dump real do banco, arquivo de uploads, retenção de backups, manutenção
   de sessões e recuperações expiradas.
-- **Interface**: páginas, módulos, identidade visual, viewport e breakpoints.
+- **Interface**: páginas, módulos, identidade visual, viewport, breakpoints, páginas
+  HTML com `Cache-Control: no-store`, revalidação ao restaurar do cache do navegador e
+  encerramento da sessão ao sair do app (voltar, avançar, outra URL ou fechar a aba).
 
 ## Segurança testada
 
@@ -103,12 +105,12 @@ suíte atual; recomenda-se executá-los em homologação antes de grandes mudan�
 
 ## Validação de referência
 
-Execução em **20/11/2026**, com Node.js 22, PostgreSQL 18 e banco de desenvolvimento:
+Execução em **22/11/2026**, com Node.js 22, PostgreSQL 18 e banco de desenvolvimento:
 
 ```text
-npm test                -> 79 testes aprovados, 0 falhas
+npm test                -> 83 testes aprovados, 0 falhas
 npm run db:check        -> 27 verificações aprovadas, 0 falhas
-npm run migrate:status  -> 5 migrations aplicadas, 0 pendentes
+npm run migrate:status  -> 6 migrations aplicadas, 0 pendentes
 ```
 
 Observações:

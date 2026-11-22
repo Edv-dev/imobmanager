@@ -200,7 +200,7 @@ function requireAuthPage(req, res, next) {
 }
 
 function redirectIfAuthenticated(req, res, next) {
-  if (req.auth) return res.redirect(302, '/app.html');
+  if (req.auth && !req.auth.saidaPendente) return res.redirect(302, '/app.html');
   return next();
 }
 

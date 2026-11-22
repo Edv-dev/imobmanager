@@ -82,6 +82,22 @@ export async function requestForm(path, formData, options = {}) {
   return interpretarResposta(response);
 }
 
+export function sinalizarSaidaKeepalive() {
+  if (!csrfToken) return;
+
+  fetch('/api/auth/leave', {
+    method: 'POST',
+    credentials: 'same-origin',
+    keepalive: true,
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken,
+    },
+    body: '{}',
+  }).catch(() => {});
+}
+
 export async function getHealth() {
   try {
     const response = await fetch('/api/health', {

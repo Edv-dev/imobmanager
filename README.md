@@ -645,8 +645,8 @@ DB_NAME=imobmanager_test npm run migrate:up
 DB_NAME=imobmanager_test npm test
 ```
 
-Resultado de referência (20/11/2026): **79 testes aprovados**, `db:check` com **27
-verificações aprovadas** e **5 migrations aplicadas**. Detalhes, cobertura por arquivo e
+Resultado de referência (22/11/2026): **83 testes aprovados**, `db:check` com **27
+verificações aprovadas** e **6 migrations aplicadas**. Detalhes, cobertura por arquivo e
 checklist manual de responsividade/acessibilidade: [docs/testes.md](docs/testes.md).
 
 ## Segurança aplicada

@@ -1,4 +1,10 @@
-import { carregarSessao } from './core/session.js';
+import {
+  CHAVE_SAIDA,
+  carregarSessao,
+  encerrarSessaoRemota,
+  retomarSessaoRemota,
+} from './core/session.js';
+import { sinalizarSaidaKeepalive } from './core/api.js';
 import { icon } from './components/icons.js';
 import { createRouter } from './core/router.js';
 import { initShell } from './components/shell.js';
@@ -37,17 +43,54 @@ function renderBootError() {
   `;
 }
 
+function consumirMarcadorSaida() {
+  const saiu = sessionStorage.getItem(CHAVE_SAIDA) === '1';
+  sessionStorage.removeItem(CHAVE_SAIDA);
+  return saiu;
+}
+
+function recarregouPagina() {
+  const entrada = performance.getEntriesByType?.('navigation')?.[0];
+  return entrada?.type === 'reload';
+}
+
+function iniciarAplicacao(session) {
+  const shell = initShell({ session });
+
+  createRouter({
+    routes,
+    outlet: document.getElementById('view-outlet'),
+    session,
+    onNavigate: (route) => shell.setActiveRoute(route),
+  });
+}
+
+async function encerrarEVoltarAoLogin() {
+  await encerrarSessaoRemota();
+  window.location.replace('/?sessao=encerrada');
+}
+
+window.addEventListener('pagehide', () => {
+  sessionStorage.setItem(CHAVE_SAIDA, '1');
+  sinalizarSaidaKeepalive();
+});
+
 async function boot() {
+  const saiu = consumirMarcadorSaida();
+
   try {
     const session = await carregarSessao();
-    const shell = initShell({ session });
 
-    createRouter({
-      routes,
-      outlet: document.getElementById('view-outlet'),
-      session,
-      onNavigate: (route) => shell.setActiveRoute(route),
-    });
+    if (session.saidaPendente || saiu) {
+      if (recarregouPagina()) {
+        await retomarSessaoRemota();
+      } else {
+        await encerrarEVoltarAoLogin();
+        return;
+      }
+    }
+
+    iniciarAplicacao(session);
   } catch (error) {
     if (error.status === 401) {
       window.location.replace('/?sessao=expirada');
@@ -58,5 +101,29 @@ async function boot() {
     renderBootError();
   }
 }
+
+window.addEventListener('pageshow', async (event) => {
+  if (!event.persisted) return;
+
+  const saiu = consumirMarcadorSaida();
+
+  try {
+    const session = await carregarSessao();
+
+    if (session.saidaPendente || saiu) {
+      await encerrarEVoltarAoLogin();
+      return;
+    }
+
+    window.location.reload();
+  } catch (error) {
+    if (error.status === 401) {
+      window.location.replace('/?sessao=expirada');
+      return;
+    }
+
+    renderBootError();
+  }
+});
 
 boot();

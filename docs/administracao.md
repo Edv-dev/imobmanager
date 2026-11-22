@@ -160,7 +160,7 @@ e `limite`, com limite máximo de 50 registros. A retenção padrão é de 365 d
 - `npm test`: 71 testes aprovados.
 - `npm run db:check`: 27 verificações aprovadas, incluindo as novas tabelas, FKs, índices
   únicos e triggers de `atualizado_em`.
-- `npm run migrate:status`: migrations 001, 002, 003, 004 e 005 aplicadas.
+- `npm run migrate:status`: migrations 001 a 006 aplicadas.
 
 ## Limitações
 

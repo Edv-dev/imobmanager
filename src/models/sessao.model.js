@@ -16,6 +16,7 @@ async function buscarValidaPorHash(tokenHash) {
   const { rows } = await query(
     `SELECT s.id AS sessao_id,
             s.expira_em,
+            s.saida_solicitada_em,
             u.id AS usuario_id,
             u.nome_completo,
             u.email,
@@ -47,6 +48,32 @@ async function registrarAcesso(sessaoId) {
         AND ultimo_acesso_em < now() - interval '5 minutes'`,
     [sessaoId]
   );
+}
+
+async function marcarSaida(tokenHash) {
+  const { rows } = await query(
+    `UPDATE sessoes
+        SET saida_solicitada_em = COALESCE(saida_solicitada_em, now())
+      WHERE token_hash = $1
+        AND revogado_em IS NULL
+        AND expira_em > now()
+      RETURNING id`,
+    [tokenHash]
+  );
+  return rows[0] || null;
+}
+
+async function cancelarSaida(tokenHash) {
+  const { rows } = await query(
+    `UPDATE sessoes
+        SET saida_solicitada_em = NULL
+      WHERE token_hash = $1
+        AND revogado_em IS NULL
+        AND expira_em > now()
+      RETURNING id`,
+    [tokenHash]
+  );
+  return rows[0] || null;
 }
 
 async function revogarPorHash(tokenHash, motivo) {
@@ -89,6 +116,8 @@ module.exports = {
   criar,
   buscarValidaPorHash,
   registrarAcesso,
+  marcarSaida,
+  cancelarSaida,
   revogarPorHash,
   revogarTodasDoUsuario,
   contarAtivas,

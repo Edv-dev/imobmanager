@@ -217,6 +217,7 @@ async function obterSessao(token) {
     token,
     tokenHash,
     expiraEm: sessao.expira_em,
+    saidaPendente: Boolean(sessao.saida_solicitada_em),
     usuario: usuarioPublico(
       {
         id: sessao.usuario_id,
@@ -247,6 +248,20 @@ async function logout({ token, ip, userAgent }) {
       detalhes: { motivo: 'logout' },
     });
   }
+}
+
+async function solicitarSaida({ token }) {
+  if (!isTokenFormatValid(token)) return false;
+
+  const sessao = await sessaoModel.marcarSaida(hashToken(token));
+  return Boolean(sessao);
+}
+
+async function retomarSessao({ token }) {
+  if (!isTokenFormatValid(token)) return false;
+
+  const sessao = await sessaoModel.cancelarSaida(hashToken(token));
+  return Boolean(sessao);
 }
 
 async function solicitarRecuperacaoSenha({ email, ip, userAgent }) {
@@ -362,6 +377,8 @@ module.exports = {
   login,
   obterSessao,
   logout,
+  solicitarSaida,
+  retomarSessao,
   solicitarRecuperacaoSenha,
   redefinirSenha,
 };

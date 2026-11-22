@@ -171,7 +171,7 @@ O histórico do detalhe é retornado por `GET /:id/historico` e exige
 - `node --test tests/clientes.test.js`: 9 testes aprovados.
 - `npm test`: 71 testes aprovados.
 - `npm run db:check`: 27 verificações aprovadas.
-- `npm run migrate:status`: migrations 001, 002, 003, 004 e 005 aplicadas.
+- `npm run migrate:status`: migrations 001 a 006 aplicadas.
 
 ## Limitações
 

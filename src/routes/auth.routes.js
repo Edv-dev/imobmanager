@@ -18,6 +18,8 @@ router.use((req, res, next) => {
 router.post('/login', loginLimiter, authController.login);
 router.get('/session', authController.session);
 router.post('/logout', authController.logout);
+router.post('/leave', authController.leave);
+router.post('/resume', authController.resume);
 router.post('/forgot-password', recoveryLimiter, authController.forgotPassword);
 router.post('/reset-password', resetLimiter, authController.resetPassword);
 

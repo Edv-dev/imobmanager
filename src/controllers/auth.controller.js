@@ -32,6 +32,7 @@ function respostaSessao(sessao) {
     usuario: sessao.usuario,
     csrfToken: csrfTokenForSession(sessao.token),
     expiraEm: sessao.expiraEm,
+    saidaPendente: Boolean(sessao.saidaPendente),
   };
 }
 
@@ -77,6 +78,24 @@ async function logout(req, res) {
   res.status(204).end();
 }
 
+async function leave(req, res) {
+  if (!req.auth) {
+    throw new HttpError(401, 'UNAUTHENTICATED', 'Sessão não encontrada ou expirada.');
+  }
+
+  await authService.solicitarSaida({ token: req.sessionToken });
+  res.status(204).end();
+}
+
+async function resume(req, res) {
+  if (!req.auth) {
+    throw new HttpError(401, 'UNAUTHENTICATED', 'Sessão não encontrada ou expirada.');
+  }
+
+  await authService.retomarSessao({ token: req.sessionToken });
+  res.status(204).end();
+}
+
 async function forgotPassword(req, res) {
   const resultado = await authService.solicitarRecuperacaoSenha({
     email: req.body?.email,
@@ -102,6 +121,8 @@ module.exports = {
   login,
   session,
   logout,
+  leave,
+  resume,
   forgotPassword,
   resetPassword,
 };

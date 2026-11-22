@@ -249,6 +249,58 @@ test('logout exige token CSRF e revoga a sessão no servidor', async () => {
   assert.equal(sessao.resposta.status, 401);
 });
 
+test('saída do app marca a sessão como pendente e pode ser retomada', async () => {
+  const resultado = await login({
+    endereco: usuarioAdmin.email,
+    senha: SENHA,
+  });
+
+  const semCsrf = await requisitar('/api/auth/leave', {
+    method: 'POST',
+    cookie: resultado.cookie,
+  });
+  assert.equal(semCsrf.resposta.status, 403);
+  assert.equal(semCsrf.dados.error.code, 'CSRF_INVALID');
+
+  const saida = await requisitar('/api/auth/leave', {
+    method: 'POST',
+    cookie: resultado.cookie,
+    csrf: resultado.dados.csrfToken,
+  });
+  assert.equal(saida.resposta.status, 204);
+
+  const pendente = await requisitar('/api/auth/session', {
+    cookie: resultado.cookie,
+  });
+  assert.equal(pendente.resposta.status, 200);
+  assert.equal(pendente.dados.saidaPendente, true);
+
+  const paginaLogin = await fetch(`${baseUrl}/`, {
+    redirect: 'manual',
+    headers: { Cookie: resultado.cookie },
+  });
+  assert.equal(paginaLogin.status, 200);
+
+  const retomada = await requisitar('/api/auth/resume', {
+    method: 'POST',
+    cookie: resultado.cookie,
+    csrf: resultado.dados.csrfToken,
+  });
+  assert.equal(retomada.resposta.status, 204);
+
+  const ativa = await requisitar('/api/auth/session', {
+    cookie: resultado.cookie,
+  });
+  assert.equal(ativa.resposta.status, 200);
+  assert.equal(ativa.dados.saidaPendente, false);
+
+  await requisitar('/api/auth/logout', {
+    method: 'POST',
+    cookie: resultado.cookie,
+    csrf: resultado.dados.csrfToken,
+  });
+});
+
 test('requisições de outra origem são rejeitadas', async () => {
   const resposta = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

@@ -84,6 +84,19 @@ Duração da sessão:
 3. O cookie é limpo e a resposta é `204`.
 4. A auditoria registra o evento quando a sessão existia.
 
+### Saída do aplicativo
+
+- Sair de `/app.html` (voltar, avançar, digitar outra URL ou fechar a aba) envia
+  `POST /api/auth/leave` com `keepalive`; a sessão recebe `saida_solicitada_em` e passa a
+  exigir novo login ao retornar.
+- Ao retornar por voltar/avançar, `GET /api/auth/session` informa `saidaPendente` e o
+  frontend chama `/api/auth/logout` antes de redirecionar para `/?sessao=encerrada`.
+- Recarregar a página (F5) mantém a sessão: o frontend detecta `navigation type = reload`
+  via `PerformanceNavigationTiming`, chama `POST /api/auth/resume` para limpar a saída
+  pendente e continua autenticado.
+- Navegação interna da SPA (rotas com `#`) não conta como saída.
+- Em navegadores muito antigos, sem `PerformanceNavigationTiming`, o F5 pode exigir login.
+
 ### Recuperação de senha
 
 1. `POST /api/auth/forgot-password` recebe o e-mail e responde sempre com a mesma
@@ -115,7 +128,7 @@ Migration `002_auth_sessions`:
 
 | Tabela               | Conteúdo                                                                    |
 | -------------------- | --------------------------------------------------------------------------- |
-| `sessoes`            | `token_hash`, usuário, criação, último acesso, expiração, revogação, IP e UA |
+| `sessoes`            | `token_hash`, usuário, criação, último acesso, expiração, revogação, saída do app, IP e UA |
 | `recuperacoes_senha` | `token_hash`, usuário, criação, expiração, uso e IP                         |
 
 Regras:
@@ -126,6 +139,8 @@ Regras:
 - Excluir um usuário remove suas sessões e recuperações em cascata.
 - Índices cobrem busca por usuário, expiração e sessões ainda ativas.
 - A revogação é explícita: logout, redefinição de senha ou exclusão do usuário.
+- `saida_solicitada_em` marca que o usuário saiu do app; `resume` a limpa e `logout`
+  revoga a sessão.
 
 ## Endpoints
 
@@ -134,6 +149,8 @@ Regras:
 | POST   | `/api/auth/login`           | pública      | Autentica e cria a sessão.                       |
 | GET    | `/api/auth/session`         | cookie       | Retorna usuário, permissões, CSRF e expiração.   |
 | POST   | `/api/auth/logout`          | cookie+CSRF  | Revoga a sessão e limpa o cookie.                |
+| POST   | `/api/auth/leave`           | cookie+CSRF  | Marca a saída do app e exige login ao retornar.  |
+| POST   | `/api/auth/resume`          | cookie+CSRF  | Cancela a saída pendente após recarregar (F5).   |
 | POST   | `/api/auth/forgot-password` | pública      | Solicita recuperação com resposta genérica.      |
 | POST   | `/api/auth/reset-password`  | pública      | Redefine a senha com token de uso único.         |
 
@@ -252,7 +269,10 @@ Não há usuário ou senha padrão no código ou nas migrations.
 ## Integração com o frontend
 
 - `public/js/login.js` envia as credenciais, exibe erro genérico e redireciona para
-  `/app.html` em caso de sucesso.
+  `/app.html` em caso de sucesso; ao restaurar do cache do navegador, limpa a senha.
+- `public/js/app.js` sinaliza a saída do app, retoma a sessão após F5, revalida a sessão
+  ao restaurar do cache e redireciona para `/?sessao=encerrada` quando o login é exigido
+  novamente.
 - `public/js/recuperar-senha.js` cobre solicitação e redefinição; o token é lido de
   `?token=` e removido da URL após o uso.
 - `public/js/core/session.js` carrega `GET /api/auth/session`, guarda o CSRF em memória e
@@ -288,7 +308,7 @@ Em produção, a aplicação recusa `SESSION_SECRET` ausente ou com menos de 32 
   cookie e expiração, CSRF no logout, origem inválida, bloqueio após tentativas,
   recuperação com token de uso único, revogação de sessões, política de senha,
   cabeçalhos de segurança e middlewares de autorização.
-- `npm run migrate:status`: migrations 001, 002, 003, 004 e 005 aplicadas.
+- `npm run migrate:status`: migrations 001 a 006 aplicadas.
 - `npm run db:check`: 27 verificações de integridade aprovadas, com rollback ao final.
 
 ## Limitações e próximos passos
